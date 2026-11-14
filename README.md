@@ -21,14 +21,21 @@
 Требуется Go 1.26 или новее.
 
 ```bash
-go build -o 2fa .
+./build.sh
 ```
 
-Версию можно задать при сборке:
+Скрипт собирает `2fa` без отладочных символов (`-s -w`), с `-trimpath` и без build ID, по умолчанию без cgo (`CGO_ENABLED=0`). Версия берётся из `git describe` и встраивается в бинарник.
+
+Примеры:
 
 ```bash
-go build -ldflags "-X main.version=1.0.0" -o 2fa .
+./build.sh -o dist/2fa
+VERSION=1.0.0 ./build.sh
+./build.sh --version 1.0.0
+GOOS=linux GOARCH=arm64 ./build.sh -o dist/2fa-linux-arm64
 ```
+
+Если git недоступен, версия будет `dev`; её можно задать через `VERSION` или `--version`.
 
 Проверка:
 
