@@ -24,6 +24,7 @@ function setScreen(name) {
   for (const screen of document.querySelectorAll(".screen")) {
     const active = screen.id === name;
     screen.classList.toggle("active", active);
+    screen.classList.toggle("hidden", !active);
     screen.hidden = !active;
     screen.setAttribute("aria-hidden", String(!active));
   }
