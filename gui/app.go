@@ -30,6 +30,7 @@ func (a *App) showWindow() {
 	if a.window == nil {
 		return
 	}
+	setMacOSActivationPolicy(true)
 	a.window.Show()
 	a.window.Focus()
 }

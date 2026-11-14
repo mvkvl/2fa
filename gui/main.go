@@ -44,6 +44,11 @@ func main() {
 	// поэтому показываем окно, чтобы приложение оставалось доступным.
 	showWindow = showWindow || runtime.GOOS == "linux"
 
+	initialActivationPolicy := application.ActivationPolicyAccessory
+	if showWindow {
+		initialActivationPolicy = application.ActivationPolicyRegular
+	}
+
 	selectedWindow := &App{service: svc}
 
 	wailsApp := application.New(application.Options{
@@ -51,7 +56,7 @@ func main() {
 		Description: "TOTP-аутентификатор",
 		Icon:        appIcon,
 		Mac: application.MacOptions{
-			ActivationPolicy: application.ActivationPolicyAccessory,
+			ActivationPolicy: initialActivationPolicy,
 			ApplicationShouldTerminateAfterLastWindowClosed: false,
 		},
 		Linux: application.LinuxOptions{
@@ -106,12 +111,12 @@ func main() {
 	window.RegisterHook(events.Common.WindowClosing, func(e *application.WindowEvent) {
 		e.Cancel()
 		window.Hide()
+		setMacOSActivationPolicy(false)
 	})
 
 	selectedWindow.setupTray()
 	if showWindow {
-		window.Show()
-		window.Focus()
+		selectedWindow.showWindow()
 	}
 
 	if err := wailsApp.Run(); err != nil {

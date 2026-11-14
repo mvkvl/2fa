@@ -276,24 +276,30 @@ function renderAccount(account) {
 
   const copy = document.createElement("button");
   copy.type = "button";
-  copy.className = "btn btn-small btn-primary";
-  copy.textContent = "Скопировать";
+  copy.className = "icon-btn action-btn copy-btn";
+  copy.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>';
+  copy.title = "Скопировать код";
+  copy.setAttribute("aria-label", "Скопировать код");
+  copy.dataset.tip = "Скопировать код";
   copy.addEventListener("click", async () => {
-    setBusy(copy, true, "…");
+    copy.disabled = true;
     try {
       const result = await api.copyCode(account.name);
       showToast(`Код скопирован, действует ${result.remaining} ${plural(result.remaining, "секунду", "секунды", "секунд")}`);
     } catch (err) {
       showToast(`Не удалось скопировать код: ${errorText(err)}`, "error");
     } finally {
-      setBusy(copy, false);
+      copy.disabled = false;
     }
   });
 
   const edit = document.createElement("button");
   edit.type = "button";
-  edit.className = "btn btn-small";
-  edit.textContent = "Изменить";
+  edit.className = "icon-btn action-btn edit-btn";
+  edit.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L18.5 9.5a2.1 2.1 0 0 0-3-3L5 17v3Z"/><path d="m13.5 6.5 4 4"/></svg>';
+  edit.title = "Изменить аккаунт";
+  edit.setAttribute("aria-label", "Изменить аккаунт");
+  edit.dataset.tip = "Изменить аккаунт";
   edit.addEventListener("click", () => openAccountDialog(account));
 
   actions.append(star, copy, edit);
