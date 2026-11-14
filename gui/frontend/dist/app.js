@@ -628,7 +628,7 @@ function wireEvents() {
   });
 
   Events.On("vault-changed", async () => {
-    await refreshStatus(true);
+    await refreshStatus();
     await api.refreshTray();
   });
 }
