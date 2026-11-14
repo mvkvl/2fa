@@ -98,28 +98,44 @@ func drawAppIcon(img *image.RGBA, s float64) {
 	}, s), bg)
 }
 
+func cubicPoints(p0, p1, p2, p3 point, steps int) []point {
+	pts := make([]point, 0, steps)
+	for i := 1; i <= steps; i++ {
+		t := float64(i) / float64(steps)
+		mt := 1 - t
+		x := mt*mt*mt*p0.x + 3*mt*mt*t*p1.x + 3*mt*t*t*p2.x + t*t*t*p3.x
+		y := mt*mt*mt*p0.y + 3*mt*mt*t*p1.y + 3*mt*t*t*p2.y + t*t*t*p3.y
+		pts = append(pts, point{x, y})
+	}
+	return pts
+}
+
+func trayShieldOutline(img *image.RGBA, s float64, c color.RGBA) {
+	outer := []point{{10, 8}, {34, 8}}
+	outer = append(outer, cubicPoints(point{34, 8}, point{38, 12}, point{36, 28}, point{22, 40}, 12)...)
+	outer = append(outer, cubicPoints(point{22, 40}, point{8, 28}, point{6, 12}, point{10, 8}, 12)...)
+	fillPolygon(img, scalePoints(outer, s), c)
+
+	inner := []point{{13.5, 11.5}, {30.5, 11.5}}
+	inner = append(inner, cubicPoints(point{30.5, 11.5}, point{33.5, 14.5}, point{32.5, 26}, point{22, 36}, 12)...)
+	inner = append(inner, cubicPoints(point{22, 36}, point{11, 26}, point{10.5, 14.5}, point{13.5, 11.5}, 12)...)
+	clearPolygon(img, scalePoints(inner, s))
+}
+
 func drawTrayUnlocked(img *image.RGBA, s float64) {
 	black := color.RGBA{0, 0, 0, 255}
+	trayShieldOutline(img, s, black)
+	fillCircle(img, 22*s, 17*s, 4.2*s, black)
 	fillPolygon(img, scalePoints([]point{
-		{22, 4}, {38, 10}, {38, 24}, {22, 40}, {6, 24}, {6, 10},
+		{19, 21}, {25, 21}, {26.6, 33}, {22, 35.5}, {17.4, 33},
 	}, s), black)
-	clearCircle(img, 22*s, 18*s, 4.7*s)
-	clearPolygon(img, scalePoints([]point{
-		{19.5, 20}, {24.5, 20}, {26, 32}, {22, 34}, {18, 32},
-	}, s))
-	// A small clock hand hints at TOTP without adding a second colour.
-	fillSector(img, 35*s, 9*s, 2.1*s, 3.3*s, math.Pi, 1.5*math.Pi, black)
 }
 
 func drawTrayLocked(img *image.RGBA, s float64) {
 	black := color.RGBA{0, 0, 0, 255}
-	fillPolygon(img, scalePoints([]point{
-		{22, 3}, {39, 9}, {39, 24}, {22, 41}, {5, 24}, {5, 9},
-	}, s), black)
-
-	// Padlock cut out of the shield: shackle + body.
-	clearSector(img, 22*s, 19*s, 5.2*s, 7.4*s, math.Pi, 2*math.Pi)
-	clearRoundRect(img, 14*s, 19*s, 16*s, 14*s, 3*s)
+	trayShieldOutline(img, s, black)
+	fillSector(img, 22*s, 20*s, 5.2*s, 8.2*s, math.Pi, 2*math.Pi, black)
+	fillRoundRect(img, 14*s, 20*s, 16*s, 14*s, 3*s, black)
 }
 
 func fillPolygon(img *image.RGBA, pts []point, c color.RGBA) {

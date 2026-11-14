@@ -79,10 +79,7 @@ func (a *App) rebuildTray() {
 		})
 	} else {
 		favorites, err := a.service.Favorites()
-		if err != nil || len(favorites) == 0 {
-			item := menu.Add("Нет избранных")
-			item.SetEnabled(false)
-		} else {
+		if err == nil {
 			for _, account := range favorites {
 				name := account.Name
 				menu.Add("★ " + name).OnClick(func(*application.Context) {

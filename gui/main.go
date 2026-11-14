@@ -91,7 +91,7 @@ func main() {
 	window := wailsApp.Window.NewWithOptions(application.WebviewWindowOptions{
 		Name:             "main",
 		Title:            "2fa",
-		Width:            760,
+		Width:            660,
 		Height:           780,
 		MinWidth:         560,
 		MinHeight:        600,
