@@ -95,6 +95,7 @@ func main() {
 		Height:           780,
 		MinWidth:         560,
 		MinHeight:        600,
+		DisableResize:    true,
 		Hidden:           !showWindow,
 		URL:              "/",
 		BackgroundColour: application.NewRGB(15, 21, 28),

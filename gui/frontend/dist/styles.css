@@ -856,3 +856,33 @@ dialog.modal::backdrop {
     gap: 4px;
   }
 }
+
+/* Floating add button */
+.fab {
+  position: fixed;
+  right: 26px;
+  bottom: 26px;
+  z-index: 20;
+  width: 58px;
+  height: 58px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(114, 232, 189, .35);
+  border-radius: 50%;
+  background: linear-gradient(135deg, #72e8bd, #3fc99b);
+  color: #052119;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, .45), 0 0 0 1px rgba(114, 232, 189, .15);
+}
+.fab:hover {
+  background: linear-gradient(135deg, #8af1cc, #4bd6a7);
+  transform: translateY(-1px);
+}
+.fab svg {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+}

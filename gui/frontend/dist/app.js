@@ -184,11 +184,6 @@ async function refreshStatus(autoUnlockKeyring = false) {
 
   const status = state.status;
   $("vaultInfo").textContent = status.path || "";
-  let appVersion = "dev";
-  try {
-    appVersion = await withTimeout(api.version(), 2000, "Wails не ответил при чтении версии");
-  } catch {}
-  $("versionInfo").textContent = `версия ${appVersion}`;
 
   if (!status.exists) {
     setScreen("onboarding");
