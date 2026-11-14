@@ -354,8 +354,8 @@ button.btn-small,
 }
 
 .spinner {
-  width: 22px;
-  height: 22px;
+  width: 18px;
+  height: 18px;
   border: 2px solid var(--line);
   border-top-color: var(--mint);
   border-radius: 50%;
@@ -885,4 +885,48 @@ dialog.modal::backdrop {
   stroke: currentColor;
   stroke-width: 2.4;
   stroke-linecap: round;
+}
+
+/* Only the account list scrolls; app chrome stays fixed. */
+#main.screen {
+  height: 100vh;
+  max-height: 100vh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+#main .app-header,
+#main .toolbar,
+#main .statusbar {
+  flex: 0 0 auto;
+}
+
+#main .account-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding-bottom: 8px;
+}
+
+#main .account-list:empty {
+  flex: 0 0 auto;
+}
+
+#main #emptyState:not(.hidden) {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow-y: auto;
+}
+
+
+.account-item { cursor: pointer; }
+.account-item:hover {
+  border-color: rgba(114, 232, 189, .28);
+  background: rgba(114, 232, 189, .03);
 }

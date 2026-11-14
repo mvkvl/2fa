@@ -226,6 +226,15 @@ function renderAccounts() {
   }
 }
 
+async function copyAccount(account) {
+  try {
+    const result = await api.copyCode(account.name);
+    showToast(`Код скопирован, действует ${result.remaining} ${plural(result.remaining, "секунду", "секунды", "секунд")}`);
+  } catch (err) {
+    showToast(`Не удалось скопировать код: ${errorText(err)}`, "error");
+  }
+}
+
 function renderAccount(account) {
   const item = document.createElement("article");
   item.className = "account-item";
@@ -279,10 +288,7 @@ function renderAccount(account) {
   copy.addEventListener("click", async () => {
     copy.disabled = true;
     try {
-      const result = await api.copyCode(account.name);
-      showToast(`Код скопирован, действует ${result.remaining} ${plural(result.remaining, "секунду", "секунды", "секунд")}`);
-    } catch (err) {
-      showToast(`Не удалось скопировать код: ${errorText(err)}`, "error");
+      await copyAccount(account);
     } finally {
       copy.disabled = false;
     }
@@ -299,6 +305,10 @@ function renderAccount(account) {
 
   actions.append(star, copy, edit);
   item.append(main, actions);
+  item.addEventListener("click", (event) => {
+    if (event.target.closest("button")) return;
+    copyAccount(account);
+  });
   return item;
 }
 

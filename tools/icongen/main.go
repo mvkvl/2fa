@@ -111,15 +111,26 @@ func cubicPoints(p0, p1, p2, p3 point, steps int) []point {
 }
 
 func trayShieldOutline(img *image.RGBA, s float64, c color.RGBA) {
-	outer := []point{{10, 8}, {34, 8}}
-	outer = append(outer, cubicPoints(point{34, 8}, point{38, 12}, point{36, 28}, point{22, 40}, 12)...)
-	outer = append(outer, cubicPoints(point{22, 40}, point{8, 28}, point{6, 12}, point{10, 8}, 12)...)
-	fillPolygon(img, scalePoints(outer, s), c)
+	strokePolyline(img, trayShieldPath(), s, 2.0, c)
+	fillPolygon(img, scalePoints([]point{{22, 42}, {20, 39}, {24, 39}}, s), c)
+}
 
-	inner := []point{{13.5, 11.5}, {30.5, 11.5}}
-	inner = append(inner, cubicPoints(point{30.5, 11.5}, point{33.5, 14.5}, point{32.5, 26}, point{22, 36}, 12)...)
-	inner = append(inner, cubicPoints(point{22, 36}, point{11, 26}, point{10.5, 14.5}, point{13.5, 11.5}, 12)...)
-	clearPolygon(img, scalePoints(inner, s))
+func trayShieldPath() []point {
+	pts := make([]point, 0, 96)
+	for i := 0; i <= 24; i++ {
+		t := float64(i) / 24
+		pts = append(pts, point{10 + 24*t, 8})
+	}
+	pts = append(pts, cubicPoints(point{34, 8}, point{34, 16}, point{34, 39}, point{22, 40}, 40)...)
+	pts = append(pts, cubicPoints(point{22, 40}, point{10, 39}, point{10, 16}, point{10, 8}, 40)...)
+	return pts
+}
+
+func strokePolyline(img *image.RGBA, pts []point, s, width float64, c color.RGBA) {
+	radius := width / 2
+	for _, p := range pts {
+		fillCircle(img, p.x*s, p.y*s, radius*s, c)
+	}
 }
 
 func drawTrayUnlocked(img *image.RGBA, s float64) {
