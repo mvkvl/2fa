@@ -1,4 +1,4 @@
-package main
+package core
 
 import (
 	"encoding/base64"
@@ -36,6 +36,11 @@ type ProviderOptions struct {
 	Stderr          io.Writer
 	StdinIsTTY      bool
 	PassphraseStdin bool
+
+	// Passphrase allows non-CLI callers (for example the GUI) to provide
+	// the vault password directly instead of reading it from stdin.
+	Passphrase    string
+	PassphraseSet bool
 }
 
 type keyringStore interface {
@@ -196,6 +201,12 @@ func readPasswordFromTerminal(f *os.File, w io.Writer, prompt string, confirm bo
 }
 
 func readPassphrase(opts ProviderOptions, prompt string, confirm bool) (string, error) {
+	if opts.PassphraseSet {
+		if opts.Passphrase == "" {
+			return "", errors.New("пароль не может быть пустым")
+		}
+		return opts.Passphrase, nil
+	}
 	if value := os.Getenv("2FA_PASSPHRASE"); value != "" {
 		return value, nil
 	}

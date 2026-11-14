@@ -10,6 +10,8 @@ import (
 	"testing"
 )
 
+const testSecret = "JBSWY3DPEHPK3PXP"
+
 var sixDigitsRE = regexp.MustCompile(`^\d{6}\n$`)
 
 func runCLI(t *testing.T, input string, args ...string) (string, string, error) {

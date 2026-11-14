@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>2fa</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<section id="loading" class="screen centered">
+  <div class="spinner" aria-hidden="true"></div>
+  <p class="muted">Загрузка…</p>
+</section>
+
+<section id="onboarding" class="screen centered hidden">
+  <div class="welcome-card">
+    <div class="logo" aria-hidden="true">
+      <svg viewBox="0 0 64 64">
+        <path class="logo-shield" d="M32 3 57 13v19c0 15-10 25-25 29C17 57 7 47 7 32V13Z"/>
+        <circle class="logo-keyhole" cx="32" cy="28" r="7"/>
+        <path class="logo-keyhole" d="M28 33h8l2 14h-12Z"/>
+      </svg>
+    </div>
+    <h1>Добро пожаловать в 2fa</h1>
+    <p class="muted">Секреты хранятся локально в зашифрованном виде. Выберите способ хранения ключа.</p>
+    <form id="createForm" class="stack">
+      <label>Способ хранения ключа
+        <select id="createProvider">
+          <option value="keyring">Keyring (рекомендуется)</option>
+          <option value="passphrase">Пароль</option>
+        </select>
+      </label>
+      <p id="keyringNote" class="hint hidden">Keyring недоступен в этой системе. Будет использован пароль.</p>
+      <div id="createPassphraseFields" class="stack hidden">
+        <label>Пароль
+          <input id="createPassphrase" type="password" autocomplete="new-password">
+        </label>
+        <label>Повторите пароль
+          <input id="createPassphrase2" type="password" autocomplete="new-password">
+        </label>
+      </div>
+      <button id="createBtn" class="primary" type="submit">Создать хранилище</button>
+    </form>
+  </div>
+</section>
+
+<section id="unlock" class="screen centered hidden">
+  <form id="unlockForm" class="welcome-card stack">
+    <div class="logo" aria-hidden="true">
+      <svg viewBox="0 0 64 64">
+        <path class="logo-shield" d="M32 3 57 13v19c0 15-10 25-25 29C17 57 7 47 7 32V13Z"/>
+        <rect class="logo-keyhole" x="23" y="29" width="18" height="15" rx="4"/>
+        <path class="logo-keyhole" d="M27 29v-5a5 5 0 0 1 10 0v5" fill="none" stroke-width="4"/>
+      </svg>
+    </div>
+    <h1>Хранилище заблокировано</h1>
+    <p id="unlockHint" class="muted">Введите пароль, чтобы открыть доступ к аккаунтам.</p>
+    <label id="unlockPassphraseWrap">Пароль
+      <input id="unlockPassphrase" type="password" autocomplete="current-password">
+    </label>
+    <button id="unlockBtn" class="primary" type="submit">Разблокировать</button>
+  </form>
+</section>
+
+<section id="main" class="screen hidden">
+  <header class="app-header">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 64 64">
+          <path class="logo-shield" d="M32 3 57 13v19c0 15-10 25-25 29C17 57 7 47 7 32V13Z"/>
+          <circle class="logo-keyhole" cx="32" cy="28" r="7"/>
+          <path class="logo-keyhole" d="M28 33h8l2 14h-12Z"/>
+        </svg>
+      </span>
+      <span>2fa</span>
+    </div>
+    <div class="ring" aria-label="Осталось секунд до смены кода">
+      <svg id="ringSvg" viewBox="0 0 48 48" role="img" aria-label="Таймер TOTP">
+        <g id="ringSegments"></g>
+      </svg>
+      <span id="ringSeconds">30</span>
+    </div>
+    <div class="header-actions">
+      <button id="lockBtn" class="icon-btn" type="button" title="Заблокировать" aria-label="Заблокировать">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3" fill="none" stroke-width="2"/></svg>
+      </button>
+      <button id="settingsBtn" class="icon-btn" type="button" title="Настройки" aria-label="Настройки">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1" fill="none" stroke-width="2"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="toolbar">
+    <input id="search" type="search" placeholder="Поиск по имени или описанию" autocomplete="off">
+    <button id="addBtn" class="primary" type="button">Добавить аккаунт</button>
+  </div>
+
+  <div id="accountList" class="account-list" role="list"></div>
+
+  <div id="emptyState" class="empty hidden">
+    <p>Аккаунтов пока нет.</p>
+    <button id="emptyAddBtn" class="primary" type="button">Добавить первый аккаунт</button>
+  </div>
+
+  <footer class="statusbar">
+    <span id="vaultInfo"></span>
+    <span id="versionInfo"></span>
+  </footer>
+</section>
+
+<dialog id="accountDialog" class="modal">
+  <form method="dialog" id="accountForm" class="modal-card stack">
+    <h2 id="accountDialogTitle">Новый аккаунт</h2>
+    <input type="hidden" id="accountOriginalName">
+    <label>Название
+      <input id="accountName" required maxlength="128" autocomplete="off">
+    </label>
+    <label>Описание
+      <textarea id="accountDescription" rows="2" maxlength="1000"></textarea>
+    </label>
+    <label>
+      <span id="accountSecretLabel">Секрет (Base32)</span>
+      <input id="accountSecret" type="password" autocomplete="off" spellcheck="false">
+    </label>
+    <p id="accountSecretHint" class="hint hidden">Текущий секрет не отображается. Оставьте поле пустым, чтобы не менять.</p>
+    <label class="checkbox"><input id="accountFavorite" type="checkbox"> Добавить в избранное</label>
+    <div class="modal-actions">
+      <button type="button" id="accountDeleteBtn" class="danger hidden">Удалить</button>
+      <span class="spacer"></span>
+      <button type="button" id="accountCancelBtn">Отмена</button>
+      <button type="submit" id="accountSaveBtn" class="primary">Сохранить</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="settingsDialog" class="modal">
+  <div class="modal-card stack">
+    <h2>Настройки</h2>
+    <div class="info-grid">
+      <span>Файл хранилища</span><code id="settingsPath"></code>
+      <span>Провайдер</span><strong id="settingsProvider"></strong>
+      <span>Версия</span><span id="settingsVersion"></span>
+    </div>
+    <hr>
+    <h3>Сменить способ хранения ключа</h3>
+    <div class="row">
+      <select id="rekeyTarget">
+        <option value="keyring">Keyring</option>
+        <option value="passphrase">Пароль</option>
+      </select>
+      <input id="rekeyPassphrase" type="password" placeholder="Новый пароль" autocomplete="new-password">
+      <button id="rekeyBtn" type="button">Сменить</button>
+    </div>
+    <p class="hint">Для перехода на пароль укажите новый пароль. Для keyring пароль не нужен.</p>
+    <hr>
+    <h3>Экспорт</h3>
+    <p class="hint">Резервная копия шифруется паролем и сохраняется в формате .2fa.</p>
+    <div class="row">
+      <input id="exportPassphrase" type="password" placeholder="Пароль для экспорта" autocomplete="new-password">
+      <input id="exportPassphrase2" type="password" placeholder="Повторите пароль" autocomplete="new-password">
+      <button id="exportBtn" type="button">Экспортировать…</button>
+    </div>
+    <hr>
+    <h3>Импорт</h3>
+    <p class="hint">Импорт добавляет новые аккаунты; существующие можно перезаписать.</p>
+    <div class="row">
+      <input id="importPassphrase" type="password" placeholder="Пароль от файла .2fa" autocomplete="current-password">
+      <button id="importBtn" type="button">Выбрать файл…</button>
+    </div>
+    <div class="modal-actions">
+      <button id="settingsLockBtn" type="button">Заблокировать</button>
+      <span class="spacer"></span>
+      <button id="settingsCloseBtn" type="button" class="primary">Закрыть</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="importDialog" class="modal">
+  <div class="modal-card stack">
+    <h2>Импорт аккаунтов</h2>
+    <p id="importSummary"></p>
+    <div id="importList" class="import-list"></div>
+    <label class="checkbox"><input id="importOverwrite" type="checkbox"> Перезаписать существующие аккаунты</label>
+    <div class="modal-actions">
+      <span class="spacer"></span>
+      <button id="importCancelBtn" type="button">Отмена</button>
+      <button id="importApplyBtn" type="button" class="primary">Импортировать</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="confirmDialog" class="modal">
+  <div class="modal-card stack">
+    <h2 id="confirmTitle">Подтверждение</h2>
+    <p id="confirmMessage"></p>
+    <div class="modal-actions">
+      <span class="spacer"></span>
+      <button id="confirmCancelBtn" type="button">Отмена</button>
+      <button id="confirmOkBtn" type="button" class="danger">Удалить</button>
+    </div>
+  </div>
+</dialog>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

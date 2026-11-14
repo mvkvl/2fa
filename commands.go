@@ -405,7 +405,7 @@ func addAction(ctx context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return err
 	}
-	if vault.created && vault.Header.Provider == providerPlaintext {
+	if vault.WasCreated() && vault.Header.Provider == providerPlaintext {
 		fmt.Fprintln(stderr, "Предупреждение: секреты хранятся без шифрования.")
 	}
 	overwritten, err := vault.Payload.Add(name, secret, description, cmd.Bool("force"))

@@ -1,4 +1,4 @@
-package main
+package core
 
 import (
 	"errors"
@@ -13,7 +13,9 @@ import (
 type Account struct {
 	Secret      string    `json:"secret"`
 	Description string    `json:"description,omitempty"`
+	Favorite    bool      `json:"favorite,omitempty"`
 	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at,omitempty"`
 }
 
 type Payload struct {
@@ -68,11 +70,15 @@ func (p *Payload) Add(name, secret string, description *string, force bool) (boo
 	if exists {
 		createdAt = old.CreatedAt
 	}
-	account := Account{Secret: normalized, CreatedAt: createdAt}
+	updatedAt := time.Now().UTC()
+	account := Account{Secret: normalized, CreatedAt: createdAt, UpdatedAt: updatedAt}
 	if description != nil {
 		account.Description = *description
 	} else if exists {
 		account.Description = old.Description
+	}
+	if exists {
+		account.Favorite = old.Favorite
 	}
 	p.Accounts[name] = account
 	return exists, nil
@@ -94,6 +100,7 @@ func (p *Payload) Update(name string, secret, description *string) error {
 	if description != nil {
 		account.Description = *description
 	}
+	account.UpdatedAt = time.Now().UTC()
 	p.Accounts[name] = account
 	return nil
 }
@@ -114,6 +121,7 @@ func (p *Payload) Rename(oldName, newName string) error {
 		return fmt.Errorf("аккаунт %q уже существует", newName)
 	}
 	delete(p.Accounts, oldName)
+	account.UpdatedAt = time.Now().UTC()
 	p.Accounts[newName] = account
 	return nil
 }
@@ -124,6 +132,18 @@ func (p *Payload) Remove(name string) error {
 		return fmt.Errorf("аккаунт %q не найден", name)
 	}
 	delete(p.Accounts, name)
+	return nil
+}
+
+func (p *Payload) SetFavorite(name string, favorite bool) error {
+	p.ensure()
+	account, ok := p.Accounts[name]
+	if !ok {
+		return fmt.Errorf("аккаунт %q не найден", name)
+	}
+	account.Favorite = favorite
+	account.UpdatedAt = time.Now().UTC()
+	p.Accounts[name] = account
 	return nil
 }
 
@@ -144,6 +164,32 @@ func (p *Payload) List() []AccountInfo {
 	for name, account := range p.Accounts {
 		infos = append(infos, AccountInfo{Name: name, Account: account})
 	}
-	sort.Slice(infos, func(i, j int) bool { return infos[i].Name < infos[j].Name })
+	sort.Slice(infos, func(i, j int) bool {
+		left := strings.ToLower(infos[i].Name)
+		right := strings.ToLower(infos[j].Name)
+		if left == right {
+			return infos[i].Name < infos[j].Name
+		}
+		return left < right
+	})
+	return infos
+}
+
+func (p *Payload) Favorites() []AccountInfo {
+	p.ensure()
+	infos := make([]AccountInfo, 0, len(p.Accounts))
+	for name, account := range p.Accounts {
+		if account.Favorite {
+			infos = append(infos, AccountInfo{Name: name, Account: account})
+		}
+	}
+	sort.Slice(infos, func(i, j int) bool {
+		left := strings.ToLower(infos[i].Name)
+		right := strings.ToLower(infos[j].Name)
+		if left == right {
+			return infos[i].Name < infos[j].Name
+		}
+		return left < right
+	})
 	return infos
 }

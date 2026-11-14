@@ -1,4 +1,4 @@
-package main
+package core
 
 import (
 	"crypto/aes"
@@ -250,7 +250,7 @@ func (v *Vault) Save() error {
 	return writeVaultFile(v.Path, v.Header)
 }
 
-func openVault(path, requestedProvider string, opts ProviderOptions) (*Vault, error) {
+func ReadVaultHeader(path string) (*VaultHeader, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -271,6 +271,15 @@ func openVault(path, requestedProvider string, opts ProviderOptions) (*Vault, er
 	if err := validateVaultHeader(&header); err != nil {
 		return nil, err
 	}
+	return &header, nil
+}
+
+func openVault(path, requestedProvider string, opts ProviderOptions) (*Vault, error) {
+	headerPtr, err := ReadVaultHeader(path)
+	if err != nil {
+		return nil, err
+	}
+	header := *headerPtr
 	if requestedProvider != "" && requestedProvider != providerAuto && requestedProvider != header.Provider {
 		return nil, fmt.Errorf("vault использует провайдер %q, а указан %q; для смены провайдера используйте 2fa rekey", header.Provider, requestedProvider)
 	}
@@ -293,6 +302,20 @@ func openVault(path, requestedProvider string, opts ProviderOptions) (*Vault, er
 		key:      key,
 		provider: provider,
 	}, nil
+}
+
+func (v *Vault) WasCreated() bool {
+	return v.created
+}
+
+// Close drops the decrypted payload and overwrites the in-memory key.
+func (v *Vault) Close() {
+	for i := range v.key {
+		v.key[i] = 0
+	}
+	v.key = nil
+	v.Payload = nil
+	v.provider = nil
 }
 
 func createVault(path, requestedProvider string, opts ProviderOptions) (*Vault, error) {
@@ -397,8 +420,8 @@ func rekeyVault(vault *Vault, target string, opts ProviderOptions) error {
 	if err := writeVaultFile(vault.Path, header); err != nil {
 		return fail(err)
 	}
-	if err := vault.provider.Cleanup(vault.Header.VaultID); err != nil {
-		fmt.Fprintf(stderr, "Предупреждение: не удалось удалить старый ключ: %v\n", err)
+	if err := vault.provider.Cleanup(vault.Header.VaultID); err != nil && opts.Stderr != nil {
+		fmt.Fprintf(opts.Stderr, "Предупреждение: не удалось удалить старый ключ: %v\n", err)
 	}
 	vault.Header = header
 	vault.key = newKey
