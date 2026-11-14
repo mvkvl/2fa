@@ -204,6 +204,33 @@
   </div>
 </dialog>
 
+<script>
+  (function () {
+    window.__2faBooted = false;
+    const showError = (message) => {
+      const loading = document.getElementById("loading");
+      if (!loading) return;
+      const text = loading.querySelector("p");
+      if (text) text.textContent = message;
+    };
+    window.addEventListener("error", (event) => {
+      if (window.__2faBooted) return;
+      const target = event.target;
+      const where = target && target.src ? ` (${target.src})` : "";
+      showError("Ошибка загрузки интерфейса" + where + ": " + (event.message || "см. консоль Wails"));
+    }, true);
+    window.addEventListener("unhandledrejection", (event) => {
+      if (window.__2faBooted) return;
+      const reason = event.reason && event.reason.message ? event.reason.message : String(event.reason || "неизвестная ошибка");
+      showError("Ошибка запуска интерфейса: " + reason);
+    });
+    setTimeout(() => {
+      if (!window.__2faBooted) {
+        showError("Интерфейс не загрузился за 8 секунд. Проверьте консоль Wails.");
+      }
+    }, 8000);
+  })();
+</script>
 <script type="module" src="app.js"></script>
 </body>
 </html>

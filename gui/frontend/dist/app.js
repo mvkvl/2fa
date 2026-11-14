@@ -13,6 +13,13 @@ const state = {
   toastTimer: null,
 };
 
+function withTimeout(promise, ms, message) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(message)), ms)),
+  ]);
+}
+
 function setScreen(name) {
   for (const screen of document.querySelectorAll(".screen")) {
     const active = screen.id === name;
@@ -159,7 +166,7 @@ function updateUnlockScreen() {
 
 async function refreshStatus(autoUnlockKeyring = false) {
   try {
-    state.status = await api.status();
+    state.status = await withTimeout(api.status(), 5000, "Wails не ответил при чтении состояния хранилища");
   } catch (err) {
     showToast(`Не удалось прочитать состояние хранилища: ${errorText(err)}`, "error");
     setScreen("unlock");
@@ -168,7 +175,7 @@ async function refreshStatus(autoUnlockKeyring = false) {
 
   if (autoUnlockKeyring && state.status.exists && state.status.locked && state.status.provider === "keyring" && state.status.keyringAvailable) {
     try {
-      state.status = await api.unlock("");
+      state.status = await withTimeout(api.unlock(""), 8000, "Wails не ответил при разблокировке keyring");
     } catch {
       // The keyring may contain no key for this vault; show the unlock screen.
     }
@@ -176,7 +183,11 @@ async function refreshStatus(autoUnlockKeyring = false) {
 
   const status = state.status;
   $("vaultInfo").textContent = status.path || "";
-  $("versionInfo").textContent = `версия ${await api.version().catch(() => "dev")}`;
+  let appVersion = "dev";
+  try {
+    appVersion = await withTimeout(api.version(), 2000, "Wails не ответил при чтении версии");
+  } catch {}
+  $("versionInfo").textContent = `версия ${appVersion}`;
 
   if (!status.exists) {
     setScreen("onboarding");
@@ -621,6 +632,7 @@ function wireEvents() {
 }
 
 async function init() {
+  window.__2faBooted = true;
   buildRing();
   setInterval(updateRing, 250);
   wireEvents();
@@ -628,6 +640,7 @@ async function init() {
 }
 
 init().catch((err) => {
+  window.__2faBooted = true;
   showToast(`Ошибка запуска интерфейса: ${errorText(err)}`, "error");
   setScreen("unlock");
 });

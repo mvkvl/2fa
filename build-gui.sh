@@ -22,6 +22,8 @@ usage() {
   VERSION             версия, если не указан --version
   GOOS, GOARCH        целевая платформа
   CGO_ENABLED         по умолчанию 1 (0 для Windows)
+  MACOSX_DEPLOYMENT_TARGET
+                      минимальная версия macOS (по умолчанию 12.0)
 EOF
 }
 
@@ -75,6 +77,19 @@ if [ -z "${CGO_ENABLED:-}" ]; then
 fi
 export GOOS GOARCH CGO_ENABLED
 
+if [ "$GOOS" = "darwin" ]; then
+	MACOSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET:-12.0}"
+	export MACOSX_DEPLOYMENT_TARGET
+	if [ -z "${CGO_CFLAGS:-}" ]; then
+		CGO_CFLAGS="-mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET}"
+		export CGO_CFLAGS
+	fi
+	if [ -z "${CGO_LDFLAGS:-}" ]; then
+		CGO_LDFLAGS="-mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET}"
+		export CGO_LDFLAGS
+	fi
+fi
+
 if [ "$GOOS" = "linux" ]; then
 	if ! command -v pkg-config >/dev/null 2>&1; then
 		echo "build-gui.sh: не найден pkg-config (нужен для GTK4/WebKitGTK)" >&2
@@ -95,6 +110,10 @@ if [[ "$OUTPUT" != /* ]]; then
 fi
 if [ "$GOOS" = "windows" ] && [[ "$OUTPUT" != *.exe ]]; then
 	OUTPUT="${OUTPUT}.exe"
+fi
+if [ -d "$OUTPUT" ]; then
+	echo "build-gui.sh: путь вывода \"$OUTPUT\" является каталогом; укажите файл, например $OUTPUT/2fa" >&2
+	exit 2
 fi
 mkdir -p "$(dirname -- "$OUTPUT")"
 

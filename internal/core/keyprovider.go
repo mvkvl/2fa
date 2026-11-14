@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime"
 	"strings"
+	"time"
 
 	"github.com/zalando/go-keyring"
 	"golang.org/x/crypto/argon2"
@@ -66,8 +68,26 @@ func (osKeyring) Delete(service, user string) error {
 var keyringBackend keyringStore = osKeyring{}
 
 func keyringAvailable() bool {
-	_, err := keyringBackend.Get(keyringService, keyringProbe)
-	return err == nil || errors.Is(err, keyring.ErrNotFound)
+	// На macOS go-keyring вызывает /usr/bin/security. Проверка наличия
+	// утилиты не трогает keychain и не может зависнуть на запросе доступа.
+	if runtime.GOOS == "darwin" {
+		_, err := os.Stat("/usr/bin/security")
+		return err == nil
+	}
+
+	// На остальных платформах проверяем backend, но с таймаутом, чтобы
+	// недоступный D-Bus/секретный сервис не подвешивал статус GUI.
+	done := make(chan bool, 1)
+	go func() {
+		_, err := keyringBackend.Get(keyringService, keyringProbe)
+		done <- err == nil || errors.Is(err, keyring.ErrNotFound)
+	}()
+	select {
+	case available := <-done:
+		return available
+	case <-time.After(2 * time.Second):
+		return false
+	}
 }
 
 func newKeyProvider(name string, opts ProviderOptions) (KeyProvider, error) {
