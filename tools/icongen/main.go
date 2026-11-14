@@ -112,17 +112,17 @@ func cubicPoints(p0, p1, p2, p3 point, steps int) []point {
 
 func trayShieldOutline(img *image.RGBA, s float64, c color.RGBA) {
 	strokePolyline(img, trayShieldPath(), s, 2.0, c)
-	fillPolygon(img, scalePoints([]point{{22, 42}, {20, 39}, {24, 39}}, s), c)
+	fillPolygon(img, scalePoints([]point{{22, 42}, {19.5, 38.5}, {24.5, 38.5}}, s), c)
 }
 
 func trayShieldPath() []point {
 	pts := make([]point, 0, 96)
 	for i := 0; i <= 24; i++ {
 		t := float64(i) / 24
-		pts = append(pts, point{10 + 24*t, 8})
+		pts = append(pts, point{6 + 32*t, 4})
 	}
-	pts = append(pts, cubicPoints(point{34, 8}, point{34, 16}, point{34, 39}, point{22, 40}, 40)...)
-	pts = append(pts, cubicPoints(point{22, 40}, point{10, 39}, point{10, 16}, point{10, 8}, 40)...)
+	pts = append(pts, cubicPoints(point{38, 4}, point{39, 14}, point{38, 36}, point{22, 41}, 40)...)
+	pts = append(pts, cubicPoints(point{22, 41}, point{6, 36}, point{5, 14}, point{6, 4}, 40)...)
 	return pts
 }
 
@@ -136,17 +136,17 @@ func strokePolyline(img *image.RGBA, pts []point, s, width float64, c color.RGBA
 func drawTrayUnlocked(img *image.RGBA, s float64) {
 	black := color.RGBA{0, 0, 0, 255}
 	trayShieldOutline(img, s, black)
-	fillCircle(img, 22*s, 17*s, 4.2*s, black)
+	fillCircle(img, 22*s, 16*s, 5*s, black)
 	fillPolygon(img, scalePoints([]point{
-		{19, 21}, {25, 21}, {26.6, 33}, {22, 35.5}, {17.4, 33},
+		{18, 20}, {26, 20}, {28, 34}, {22, 37}, {16, 34},
 	}, s), black)
 }
 
 func drawTrayLocked(img *image.RGBA, s float64) {
 	black := color.RGBA{0, 0, 0, 255}
 	trayShieldOutline(img, s, black)
-	fillSector(img, 22*s, 20*s, 5.2*s, 8.2*s, math.Pi, 2*math.Pi, black)
-	fillRoundRect(img, 14*s, 20*s, 16*s, 14*s, 3*s, black)
+	fillSector(img, 22*s, 20*s, 6*s, 9.5*s, math.Pi, 2*math.Pi, black)
+	fillRoundRect(img, 12*s, 20*s, 20*s, 16*s, 4*s, black)
 }
 
 func fillPolygon(img *image.RGBA, pts []point, c color.RGBA) {
