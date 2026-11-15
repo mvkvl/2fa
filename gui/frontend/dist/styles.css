@@ -9,6 +9,7 @@
   --muted: #8aa0b0;
   --mint: #62e0b2;
   --mint-dim: #35b98d;
+  --ring: #62e0b2;
   --amber: #f6b750;
   --danger: #ff7a7a;
   --radius: 18px;
@@ -54,6 +55,7 @@
   --muted: #617585;
   --mint: #0b7a5d;
   --mint-dim: #096b51;
+  --ring: #0b7a5d;
   --amber: #b87912;
   --danger: #c74444;
   --shadow: 0 24px 80px rgba(28, 47, 61, .18);
@@ -96,6 +98,7 @@
   --muted: #a09ab8;
   --mint: #b39dff;
   --mint-dim: #8a72e6;
+  --ring: #b39dff;
   --amber: #f6c177;
   --danger: #ff8a8a;
   --shadow: 0 24px 80px rgba(0, 0, 0, .55);
@@ -138,6 +141,7 @@
   --muted: #84a8b8;
   --mint: #5ee0e0;
   --mint-dim: #35b9c9;
+  --ring: #5ee0e0;
   --amber: #f2c46d;
   --danger: #ff8585;
   --shadow: 0 24px 80px rgba(0, 0, 0, .5);
@@ -180,6 +184,7 @@
   --muted: #7a6a58;
   --mint: #0c735a;
   --mint-dim: #0a6650;
+  --ring: #0c735a;
   --amber: #b8741a;
   --danger: #c24545;
   --shadow: 0 24px 80px rgba(74, 54, 33, .18);
@@ -222,6 +227,7 @@
   --muted: #6d6488;
   --mint: #6f4fd8;
   --mint-dim: #5a3cc0;
+  --ring: #6f4fd8;
   --amber: #a9741a;
   --danger: #c04545;
   --shadow: 0 24px 80px rgba(60, 45, 110, .16);
@@ -264,6 +270,7 @@
   --muted: #547785;
   --mint: #06727c;
   --mint-dim: #05666f;
+  --ring: #06727c;
   --amber: #a97a12;
   --danger: #c14545;
   --shadow: 0 24px 80px rgba(20, 70, 85, .16);
@@ -306,6 +313,7 @@
   --muted: #b5a28c;
   --mint: #e3b878;
   --mint-dim: #c99b5a;
+  --ring: #e3b878;
   --amber: #f0c07a;
   --danger: #ff8a8a;
   --shadow: 0 24px 80px rgba(0, 0, 0, .55);
@@ -842,7 +850,15 @@ button.btn-small,
 }
 
 .ring-segment.on {
+  stroke: var(--ring);
+}
+
+.ring[data-phase="warn"] .ring-segment.on {
   stroke: var(--amber);
+}
+
+.ring[data-phase="crit"] .ring-segment.on {
+  stroke: var(--danger);
 }
 
 .header-actions {

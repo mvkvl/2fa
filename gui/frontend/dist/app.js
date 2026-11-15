@@ -237,6 +237,10 @@ function updateRing() {
   if (!seconds) return;
   const remaining = 30 - (Math.floor(Date.now() / 1000) % 30);
   seconds.textContent = String(remaining);
+  const ring = seconds.closest(".ring");
+  if (ring) {
+    ring.dataset.phase = remaining <= 5 ? "crit" : remaining <= 10 ? "warn" : "ok";
+  }
   const segments = $("ringSegments")?.children || [];
   for (let i = 0; i < segments.length; i++) {
     segments[i].classList.toggle("on", i < remaining);
