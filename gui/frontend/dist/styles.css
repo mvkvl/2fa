@@ -13,6 +13,7 @@
   --danger: #ff7a7a;
   --radius: 18px;
   --shadow: 0 24px 80px rgba(0, 0, 0, .45);
+  --titlebar-height: 40px;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
@@ -41,8 +42,86 @@ body {
   display: none !important;
 }
 
+/* Custom title bar for the frameless window. */
+.titlebar {
+  --wails-draggable: drag;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--titlebar-height);
+  padding: 0 10px 0 14px;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg-soft);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.titlebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -.01em;
+}
+
+.titlebar-mark {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+  border: 1px solid rgba(98, 224, 178, .16);
+  border-radius: 8px;
+  background: rgba(98, 224, 178, .07);
+}
+
+.titlebar-mark svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+}
+
+.titlebar-close {
+  --wails-draggable: no-drag;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+}
+
+.titlebar-close:hover {
+  border-color: transparent;
+  background: rgba(255, 122, 122, .12);
+  color: var(--danger);
+}
+
+.titlebar-close:active {
+  transform: none;
+}
+
+.titlebar-close:focus-visible {
+  outline: 2px solid var(--mint);
+  outline-offset: -2px;
+}
+
+.titlebar-close svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
 .screen {
-  min-height: 100vh;
+  min-height: calc(100vh - var(--titlebar-height));
 }
 
 .screen.centered {
@@ -144,7 +223,29 @@ select:focus,
 textarea:focus {
   border-color: var(--mint-dim);
   box-shadow: 0 0 0 3px rgba(98, 224, 178, .11);
-  background: #0e1922;
+  background-color: #0e1922;
+}
+
+/* Keep select boxes the same height as text inputs and give them a custom arrow. */
+select {
+  height: 46px;
+  padding: 0 38px 0 13px;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5l5-5' fill='none' stroke='%238aa0b0' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 13px center;
+  background-size: 12px 8px;
+  cursor: pointer;
+}
+
+select:focus {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5l5-5' fill='none' stroke='%2362e0b2' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+select option {
+  background: var(--panel);
+  color: var(--text);
 }
 
 input[type="checkbox"] {
@@ -369,52 +470,18 @@ button.btn-small,
 /* Main screen */
 
 .app-header {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 16px;
   width: min(980px, 100%);
   margin: 0 auto;
-  padding: 26px 24px 16px;
-}
-
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex: 1;
-  min-width: 0;
-  font-size: 24px;
-  font-weight: 750;
-  letter-spacing: -.025em;
-}
-
-.brand-mark {
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  flex: 0 0 auto;
-  border: 1px solid rgba(98, 224, 178, .16);
-  border-radius: 14px;
-  background: rgba(98, 224, 178, .07);
-}
-
-.brand-mark svg {
-  width: 28px;
-  height: 28px;
-  display: block;
-}
-
-.brand-mark .logo-shield {
-  fill: var(--mint);
-}
-
-.brand-mark .logo-keyhole {
-  fill: var(--bg);
+  padding: 18px 24px 16px;
 }
 
 .ring {
   position: relative;
+  grid-column: 2;
   width: 82px;
   height: 82px;
   flex: 0 0 auto;
@@ -450,6 +517,8 @@ button.btn-small,
 
 .header-actions {
   display: flex;
+  grid-column: 3;
+  justify-self: end;
   align-items: center;
   gap: 8px;
 }
@@ -789,25 +858,29 @@ dialog.modal::backdrop {
     padding: 26px 22px;
   }
 
+  .titlebar {
+    padding: 0 8px 0 12px;
+  }
+
+  .titlebar-brand {
+    gap: 8px;
+    font-size: 13px;
+  }
+
+  .titlebar-mark {
+    width: 22px;
+    height: 22px;
+    border-radius: 7px;
+  }
+
+  .titlebar-mark svg {
+    width: 15px;
+    height: 15px;
+  }
+
   .app-header {
     gap: 10px;
-    padding: 18px 16px 12px;
-  }
-
-  .brand {
-    gap: 9px;
-    font-size: 20px;
-  }
-
-  .brand-mark {
-    width: 38px;
-    height: 38px;
-    border-radius: 12px;
-  }
-
-  .brand-mark svg {
-    width: 24px;
-    height: 24px;
+    padding: 14px 16px 12px;
   }
 
   .ring {
@@ -889,8 +962,8 @@ dialog.modal::backdrop {
 
 /* Only the account list scrolls; app chrome stays fixed. */
 #main.screen {
-  height: 100vh;
-  max-height: 100vh;
+  height: calc(100vh - var(--titlebar-height));
+  max-height: calc(100vh - var(--titlebar-height));
   min-height: 0;
   overflow: hidden;
 }

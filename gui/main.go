@@ -89,13 +89,15 @@ func main() {
 	})
 
 	window := wailsApp.Window.NewWithOptions(application.WebviewWindowOptions{
-		Name:             "main",
-		Title:            "2fa",
-		Width:            660,
-		Height:           780,
-		MinWidth:         560,
-		MinHeight:        600,
-		DisableResize:    true,
+		Name:          "main",
+		Title:         "2fa",
+		Width:         660,
+		Height:        780,
+		MinWidth:      560,
+		MinHeight:     600,
+		DisableResize: true,
+		// The frontend draws its own title bar and close button.
+		Frameless:        true,
 		Hidden:           !showWindow,
 		URL:              "/",
 		BackgroundColour: application.NewRGB(15, 21, 28),

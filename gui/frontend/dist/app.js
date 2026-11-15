@@ -1,4 +1,4 @@
-import { api, Events } from "./bindings.js";
+import { api, Events } from "./bindings.js?v=5";
 
 const $ = (id) => document.getElementById(id);
 const NS = "http://www.w3.org/2000/svg";
@@ -45,6 +45,14 @@ function errorText(err) {
   if (!err) return "Неизвестная ошибка";
   if (typeof err === "string") return err;
   return err.message || String(err);
+}
+
+async function closeWindow() {
+  try {
+    await api.closeWindow();
+  } catch (err) {
+    showToast(`Не удалось закрыть окно: ${errorText(err)}`, "error");
+  }
 }
 
 function openDialog(dialog) {
@@ -612,8 +620,8 @@ function wireEvents() {
     }
   });
 
+  $("titlebarCloseBtn")?.addEventListener("click", closeWindow);
   $("lockBtn")?.addEventListener("click", lockVault);
-  $("settingsLockBtn")?.addEventListener("click", lockVault);
   $("settingsBtn")?.addEventListener("click", openSettings);
   $("settingsCloseBtn")?.addEventListener("click", () => closeDialog($("settingsDialog")));
   $("addBtn")?.addEventListener("click", () => openAccountDialog());
@@ -635,6 +643,14 @@ function wireEvents() {
     dialog.addEventListener("click", (event) => {
       if (event.target === dialog) closeDialog(dialog);
     });
+  });
+
+  window.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    // Let an open dialog handle Escape first (native dialog cancel).
+    if (document.querySelector("dialog[open]")) return;
+    event.preventDefault();
+    closeWindow();
   });
 
   Events.On("vault-changed", async () => {

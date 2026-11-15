@@ -25,6 +25,7 @@ export const api = {
 	chooseImport: (passphrase) => call(`${DESKTOP}.ChooseImport`, passphrase),
 	applyImport: (path, passphrase, overwrite) => call(`${DESKTOP}.ApplyImport`, path, passphrase, overwrite),
 	refreshTray: () => call(`${DESKTOP}.RefreshTray`),
+	closeWindow: () => call(`${DESKTOP}.CloseWindow`),
 	version: () => call(`${SERVICE}.Version`),
 	vaultPath: () => call(`${SERVICE}.VaultPath`),
 };

@@ -31,6 +31,13 @@ func (d *Desktop) RefreshTray() {
 	}
 }
 
+// CloseWindow hides the main window, matching the native close button behavior.
+func (d *Desktop) CloseWindow() {
+	if d.window != nil {
+		d.window.Close()
+	}
+}
+
 func (d *Desktop) CopyCode(name string) (service.CopyResult, error) {
 	if d.app == nil {
 		return service.CopyResult{}, errors.New("приложение ещё не готово")
