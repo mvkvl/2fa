@@ -340,7 +340,7 @@ function renderAccounts() {
   if (!list) return;
   list.replaceChildren();
   const query = state.search.trim().toLowerCase();
-  const accounts = state.accounts.filter((account) => account.name.toLowerCase().includes(query));
+  const accounts = state.accounts.filter((account) => (account.name + " " + (account.description || "")).toLowerCase().includes(query));
   if (empty) {
     empty.hidden = accounts.length !== 0;
     empty.classList.toggle("hidden", accounts.length !== 0);
@@ -779,6 +779,16 @@ function wireEvents() {
   });
 }
 
+function disableInputHints() {
+  document.querySelectorAll("input, textarea").forEach((el) => {
+    el.setAttribute("autocomplete", el.type === "password" ? "new-password" : "off");
+    el.setAttribute("autocorrect", "off");
+    el.setAttribute("autocapitalize", "off");
+    el.setAttribute("spellcheck", "false");
+    el.removeAttribute("title");
+  });
+}
+
 async function init() {
   window.__2faBooted = true;
   const themeSettings = loadThemeSettings();
@@ -789,6 +799,7 @@ async function init() {
   await refreshStatus(true);
 }
 
+disableInputHints();
 init().catch((err) => {
   window.__2faBooted = true;
   showToast(`Ошибка запуска интерфейса: ${errorText(err)}`, "error");
