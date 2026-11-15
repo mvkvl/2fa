@@ -82,7 +82,7 @@ func (a *App) rebuildTray() {
 		if err == nil {
 			for _, account := range favorites {
 				name := account.Name
-				menu.Add("★ " + name).OnClick(func(*application.Context) {
+				menu.Add(name).OnClick(func(*application.Context) {
 					a.copyFavorite(name)
 				})
 			}
