@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"runtime"
 	"time"
 
@@ -19,6 +20,41 @@ type App struct {
 	tray         *application.SystemTray
 	trayUnlocked []byte
 	trayLocked   []byte
+	watcher      *vaultWatcher
+}
+
+func (a *App) startVaultWatcher() {
+	path := a.service.VaultPath()
+	if path == "" {
+		return
+	}
+	watcher, err := startVaultWatcher(path, a.handleVaultFileChange)
+	if err != nil {
+		log.Printf("2fa: не удалось запустить наблюдение за хранилищем: %v", err)
+		return
+	}
+	a.watcher = watcher
+}
+
+func (a *App) stopVaultWatcher() {
+	if a.watcher == nil {
+		return
+	}
+	a.watcher.Close()
+	a.watcher = nil
+}
+
+func (a *App) handleVaultFileChange() {
+	if _, err := a.service.Reload(); err != nil {
+		// The vault may have been rekeyed or replaced by another process.
+		// Drop the cached key so the user is asked to unlock again.
+		log.Printf("2fa: не удалось перечитать хранилище: %v", err)
+		a.service.Lock()
+	}
+	a.rebuildTray()
+	if a.wails != nil {
+		a.wails.Event.Emit("vault-changed")
+	}
 }
 
 func (a *App) setupTray() {

@@ -51,6 +51,10 @@ func rekeyVault(vault *Vault, target string, opts ProviderOptions) error {
 	return core.RekeyVault(vault, target, opts)
 }
 
+func withVaultLock(path string, exclusive bool, fn func() error) error {
+	return core.WithVaultLock(path, exclusive, fn)
+}
+
 func newPayload() *Payload {
 	return core.NewPayload()
 }

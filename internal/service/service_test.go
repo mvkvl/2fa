@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"testing"
+	"time"
 
 	"github.com/mvkvl/2fa/internal/core"
 )
@@ -205,5 +206,130 @@ func TestServiceProviders(t *testing.T) {
 	}
 	if !foundPassphrase {
 		t.Fatal("passphrase provider should always be available")
+	}
+}
+
+func openTestVault(t *testing.T, path string) *core.Vault {
+	t.Helper()
+	vault, err := core.OpenVault(path, core.ProviderPassphrase, core.ProviderOptions{
+		Passphrase:    "pass",
+		PassphraseSet: true,
+	})
+	if err != nil {
+		t.Fatalf("OpenVault: %v", err)
+	}
+	return vault
+}
+
+func TestServiceReloadSeesExternalChanges(t *testing.T) {
+	svc, path := newTestService(t)
+	if _, err := svc.Create(core.ProviderPassphrase, "pass"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.SaveAccount(AccountInput{Name: "local", NewSecret: serviceTestSecret}); err != nil {
+		t.Fatal(err)
+	}
+
+	external := openTestVault(t, path)
+	if _, err := external.Payload.Add("external", serviceTestSecret, nil, false); err != nil {
+		t.Fatal(err)
+	}
+	if err := external.Save(); err != nil {
+		t.Fatal(err)
+	}
+	external.Close()
+
+	status, err := svc.Reload()
+	if err != nil {
+		t.Fatalf("Reload: %v", err)
+	}
+	if status.AccountCount != 2 {
+		t.Fatalf("AccountCount = %d, want 2", status.AccountCount)
+	}
+	for _, name := range []string{"local", "external"} {
+		if _, err := svc.GetAccount(name); err != nil {
+			t.Errorf("account %q missing after reload: %v", name, err)
+		}
+	}
+}
+
+func TestServiceMutationPreservesExternalChanges(t *testing.T) {
+	svc, path := newTestService(t)
+	if _, err := svc.Create(core.ProviderPassphrase, "pass"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.SaveAccount(AccountInput{Name: "local", NewSecret: serviceTestSecret}); err != nil {
+		t.Fatal(err)
+	}
+
+	external := openTestVault(t, path)
+	if _, err := external.Payload.Add("external", serviceTestSecret, nil, false); err != nil {
+		t.Fatal(err)
+	}
+	if err := external.Save(); err != nil {
+		t.Fatal(err)
+	}
+	external.Close()
+
+	if _, err := svc.SaveAccount(AccountInput{Name: "second", NewSecret: serviceTestSecret}); err != nil {
+		t.Fatalf("SaveAccount: %v", err)
+	}
+
+	fresh := openTestVault(t, path)
+	defer fresh.Close()
+	for _, name := range []string{"local", "external", "second"} {
+		if _, ok := fresh.Payload.Get(name); !ok {
+			t.Errorf("account %q was lost by the mutation", name)
+		}
+	}
+}
+
+func TestServiceMutationWaitsForVaultLock(t *testing.T) {
+	svc, path := newTestService(t)
+	if _, err := svc.Create(core.ProviderPassphrase, "pass"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.SaveAccount(AccountInput{Name: "local", NewSecret: serviceTestSecret}); err != nil {
+		t.Fatal(err)
+	}
+
+	acquired := make(chan struct{})
+	release := make(chan struct{})
+	holderDone := make(chan error, 1)
+	go func() {
+		holderDone <- core.WithVaultLock(path, true, func() error {
+			close(acquired)
+			<-release
+			return nil
+		})
+	}()
+	<-acquired
+
+	saveDone := make(chan error, 1)
+	go func() {
+		_, err := svc.SaveAccount(AccountInput{Name: "blocked", NewSecret: serviceTestSecret})
+		saveDone <- err
+	}()
+
+	select {
+	case err := <-saveDone:
+		t.Fatalf("mutation completed while the vault lock was held: %v", err)
+	case <-time.After(150 * time.Millisecond):
+	}
+
+	close(release)
+	if err := <-holderDone; err != nil {
+		t.Fatalf("lock holder: %v", err)
+	}
+	select {
+	case err := <-saveDone:
+		if err != nil {
+			t.Fatalf("SaveAccount after lock release: %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("SaveAccount did not resume after the lock was released")
+	}
+	if _, err := svc.GetAccount("blocked"); err != nil {
+		t.Fatalf("account missing after serialized save: %v", err)
 	}
 }

@@ -260,6 +260,28 @@ func loadOrInitVault(cmd *cli.Command) (*Vault, error) {
 	return openOrCreateVault(path, cmd.String("key-provider"), providerOptions(cmd))
 }
 
+// withVault opens the configured vault while holding a cross-process lock.
+// Callers must use exclusive=true for any path that may write to the vault and
+// keep the whole open-modify-save sequence inside fn.
+func withVault(cmd *cli.Command, exclusive, create bool, fn func(*Vault) error) error {
+	path, err := configPath(cmd)
+	if err != nil {
+		return err
+	}
+	return withVaultLock(path, exclusive, func() error {
+		var vault *Vault
+		if create {
+			vault, err = loadOrInitVault(cmd)
+		} else {
+			vault, err = loadVault(cmd)
+		}
+		if err != nil {
+			return err
+		}
+		return fn(vault)
+	})
+}
+
 func rootAction(ctx context.Context, cmd *cli.Command) error {
 	if cmd.Args().Len() == 0 {
 		return cli.ShowRootCommandHelp(cmd)
@@ -285,10 +307,18 @@ func codeForArg(cmd *cli.Command, arg string, allowRawFallback bool) error {
 		return printCode(arg)
 	}
 
-	vault, err := loadVault(cmd)
-	if err == nil {
+	var secret string
+	var found bool
+	err := withVault(cmd, false, false, func(vault *Vault) error {
 		if account, ok := vault.Payload.Get(arg); ok {
-			return printCode(account.Secret)
+			secret = account.Secret
+			found = true
+		}
+		return nil
+	})
+	if err == nil {
+		if found {
+			return printCode(secret)
 		}
 		if allowRawFallback {
 			if _, decodeErr := decodeSecret(arg); decodeErr == nil {
@@ -329,7 +359,11 @@ func listAction(ctx context.Context, cmd *cli.Command) error {
 	if cmd.Args().Len() != 0 {
 		return errors.New("list не принимает позиционных аргументов")
 	}
-	vault, err := loadVault(cmd)
+	var infos []AccountInfo
+	err := withVault(cmd, false, false, func(vault *Vault) error {
+		infos = vault.Payload.List()
+		return nil
+	})
 	if errors.Is(err, ErrVaultNotFound) {
 		fmt.Fprintln(stderr, "Хранилище не инициализировано. Выполните: 2fa init")
 		return nil
@@ -338,7 +372,6 @@ func listAction(ctx context.Context, cmd *cli.Command) error {
 		return err
 	}
 
-	infos := vault.Payload.List()
 	if len(infos) == 0 {
 		fmt.Fprintln(stderr, "Список аккаунтов пуст. Добавьте: 2fa add <имя>")
 		return nil
@@ -401,18 +434,19 @@ func addAction(ctx context.Context, cmd *cli.Command) error {
 		description = &value
 	}
 
-	vault, err := loadOrInitVault(cmd)
+	var overwritten bool
+	err := withVault(cmd, true, true, func(vault *Vault) error {
+		if vault.WasCreated() && vault.Header.Provider == providerPlaintext {
+			fmt.Fprintln(stderr, "Предупреждение: секреты хранятся без шифрования.")
+		}
+		var addErr error
+		overwritten, addErr = vault.Payload.Add(name, secret, description, cmd.Bool("force"))
+		if addErr != nil {
+			return addErr
+		}
+		return vault.Save()
+	})
 	if err != nil {
-		return err
-	}
-	if vault.WasCreated() && vault.Header.Provider == providerPlaintext {
-		fmt.Fprintln(stderr, "Предупреждение: секреты хранятся без шифрования.")
-	}
-	overwritten, err := vault.Payload.Add(name, secret, description, cmd.Bool("force"))
-	if err != nil {
-		return err
-	}
-	if err := vault.Save(); err != nil {
 		return err
 	}
 	if overwritten {
@@ -428,14 +462,12 @@ func removeAction(ctx context.Context, cmd *cli.Command) error {
 		return errors.New("использование: 2fa remove <имя>")
 	}
 	name := cmd.Args().Get(0)
-	vault, err := loadVault(cmd)
-	if err != nil {
-		return err
-	}
-	if err := vault.Payload.Remove(name); err != nil {
-		return err
-	}
-	if err := vault.Save(); err != nil {
+	if err := withVault(cmd, true, false, func(vault *Vault) error {
+		if err := vault.Payload.Remove(name); err != nil {
+			return err
+		}
+		return vault.Save()
+	}); err != nil {
 		return err
 	}
 	fmt.Fprintf(stdout, "Аккаунт %q удалён.\n", name)
@@ -473,14 +505,12 @@ func editAction(ctx context.Context, cmd *cli.Command) error {
 		return errors.New("укажите хотя бы один параметр: --desc, --secret или --secret-stdin")
 	}
 
-	vault, err := loadVault(cmd)
-	if err != nil {
-		return err
-	}
-	if err := vault.Payload.Update(name, secret, description); err != nil {
-		return err
-	}
-	if err := vault.Save(); err != nil {
+	if err := withVault(cmd, true, false, func(vault *Vault) error {
+		if err := vault.Payload.Update(name, secret, description); err != nil {
+			return err
+		}
+		return vault.Save()
+	}); err != nil {
 		return err
 	}
 	fmt.Fprintf(stdout, "Аккаунт %q обновлён.\n", name)
@@ -493,14 +523,12 @@ func renameAction(ctx context.Context, cmd *cli.Command) error {
 	}
 	oldName := cmd.Args().Get(0)
 	newName := cmd.Args().Get(1)
-	vault, err := loadVault(cmd)
-	if err != nil {
-		return err
-	}
-	if err := vault.Payload.Rename(oldName, newName); err != nil {
-		return err
-	}
-	if err := vault.Save(); err != nil {
+	if err := withVault(cmd, true, false, func(vault *Vault) error {
+		if err := vault.Payload.Rename(oldName, newName); err != nil {
+			return err
+		}
+		return vault.Save()
+	}); err != nil {
 		return err
 	}
 	fmt.Fprintf(stdout, "Аккаунт %q переименован в %q.\n", oldName, newName)
@@ -515,15 +543,18 @@ func rekeyAction(ctx context.Context, cmd *cli.Command) error {
 	if target == "" {
 		return errors.New("укажите целевой провайдер: --to keyring|passphrase|plaintext")
 	}
-	vault, err := loadVault(cmd)
-	if err != nil {
+	var provider string
+	if err := withVault(cmd, true, false, func(vault *Vault) error {
+		if err := rekeyVault(vault, target, providerOptions(cmd)); err != nil {
+			return err
+		}
+		provider = vault.Header.Provider
+		return nil
+	}); err != nil {
 		return err
 	}
-	if err := rekeyVault(vault, target, providerOptions(cmd)); err != nil {
-		return err
-	}
-	fmt.Fprintf(stdout, "Провайдер изменён на %q.\n", vault.Header.Provider)
-	if vault.Header.Provider == providerPlaintext {
+	fmt.Fprintf(stdout, "Провайдер изменён на %q.\n", provider)
+	if provider == providerPlaintext {
 		fmt.Fprintln(stderr, "Предупреждение: секреты хранятся без шифрования.")
 	}
 	return nil
@@ -537,28 +568,30 @@ func initAction(ctx context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return err
 	}
-	if _, statErr := os.Stat(path); statErr == nil {
-		vault, err := openVault(path, cmd.String("key-provider"), providerOptions(cmd))
+	return withVaultLock(path, true, func() error {
+		if _, statErr := os.Stat(path); statErr == nil {
+			vault, err := openVault(path, cmd.String("key-provider"), providerOptions(cmd))
+			if err != nil {
+				return err
+			}
+			fmt.Fprintf(stdout, "Хранилище уже инициализировано.\nПуть: %s\nПровайдер: %s\nАккаунтов: %d\n",
+				path, vault.Header.Provider, len(vault.Payload.Accounts))
+			return nil
+		} else if !errors.Is(statErr, os.ErrNotExist) {
+			return fmt.Errorf("не удалось проверить хранилище: %w", statErr)
+		}
+
+		vault, err := createVault(path, cmd.String("key-provider"), providerOptions(cmd))
 		if err != nil {
 			return err
 		}
-		fmt.Fprintf(stdout, "Хранилище уже инициализировано.\nПуть: %s\nПровайдер: %s\nАккаунтов: %d\n",
-			path, vault.Header.Provider, len(vault.Payload.Accounts))
+		fmt.Fprintf(stdout, "Хранилище создано.\nПуть: %s\nПровайдер: %s\nVault ID: %s\n",
+			vault.Path, vault.Header.Provider, vault.Header.VaultID)
+		if vault.Header.Provider == providerPlaintext {
+			fmt.Fprintln(stderr, "Предупреждение: секреты хранятся без шифрования.")
+		}
 		return nil
-	} else if !errors.Is(statErr, os.ErrNotExist) {
-		return fmt.Errorf("не удалось проверить хранилище: %w", statErr)
-	}
-
-	vault, err := createVault(path, cmd.String("key-provider"), providerOptions(cmd))
-	if err != nil {
-		return err
-	}
-	fmt.Fprintf(stdout, "Хранилище создано.\nПуть: %s\nПровайдер: %s\nVault ID: %s\n",
-		vault.Path, vault.Header.Provider, vault.Header.VaultID)
-	if vault.Header.Provider == providerPlaintext {
-		fmt.Fprintln(stderr, "Предупреждение: секреты хранятся без шифрования.")
-	}
-	return nil
+	})
 }
 
 func docsAction(ctx context.Context, cmd *cli.Command) error {

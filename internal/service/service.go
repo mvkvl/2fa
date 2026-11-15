@@ -154,64 +154,100 @@ func (s *Service) Providers() []ProviderInfo {
 
 func (s *Service) Create(provider, passphrase string) (Status, error) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-	status := s.statusLocked()
-	if s.pathErr != nil {
-		return status, s.pathErr
+	path := s.path
+	pathErr := s.pathErr
+	vaultOpen := s.vault != nil
+	s.mu.Unlock()
+
+	if pathErr != nil {
+		return s.Status(), pathErr
 	}
-	if s.vault != nil {
-		return status, errors.New("vault уже открыт")
+	if vaultOpen {
+		return s.Status(), errors.New("vault уже открыт")
 	}
 	if provider == "" {
 		provider = core.ProviderKeyring
 	}
 	if provider == core.ProviderPlaintext {
-		return status, errors.New("режим plaintext не поддерживается в GUI")
+		return s.Status(), errors.New("режим plaintext не поддерживается в GUI")
 	}
 	resolved, err := core.ResolveProvider(provider)
 	if err != nil {
-		return status, err
+		return s.Status(), err
 	}
 	if resolved == core.ProviderPassphrase && passphrase == "" {
-		return status, errors.New("пароль не может быть пустым")
+		return s.Status(), errors.New("пароль не может быть пустым")
 	}
-	vault, err := core.CreateVault(s.path, provider, core.ProviderOptions{
-		Passphrase:    passphrase,
-		PassphraseSet: passphrase != "",
+
+	err = core.WithVaultLock(path, true, func() error {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		if s.pathErr != nil {
+			return s.pathErr
+		}
+		if s.vault != nil {
+			return errors.New("vault уже открыт")
+		}
+		if s.path != path {
+			return errors.New("путь к vault изменился")
+		}
+		vault, err := core.CreateVault(s.path, provider, core.ProviderOptions{
+			Passphrase:    passphrase,
+			PassphraseSet: passphrase != "",
+		})
+		if err != nil {
+			return err
+		}
+		s.vault = vault
+		return nil
 	})
-	if err != nil {
-		return status, err
-	}
-	s.vault = vault
-	return s.statusLocked(), nil
+	return s.Status(), err
 }
 
 func (s *Service) Unlock(passphrase string) (Status, error) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-	status := s.statusLocked()
-	if s.pathErr != nil {
-		return status, s.pathErr
+	path := s.path
+	pathErr := s.pathErr
+	vaultOpen := s.vault != nil
+	s.mu.Unlock()
+
+	if pathErr != nil {
+		return s.Status(), pathErr
 	}
-	if s.vault != nil {
-		return status, nil
+	if vaultOpen {
+		return s.Status(), nil
 	}
-	header, err := core.ReadVaultHeader(s.path)
-	if err != nil {
-		return status, err
-	}
-	if header.Provider == core.ProviderPassphrase && passphrase == "" {
-		return status, errors.New("введите пароль vault")
-	}
-	vault, err := core.OpenVault(s.path, header.Provider, core.ProviderOptions{
-		Passphrase:    passphrase,
-		PassphraseSet: passphrase != "",
+
+	err := core.WithVaultLock(path, true, func() error {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		if s.pathErr != nil {
+			return s.pathErr
+		}
+		if s.vault != nil {
+			return nil
+		}
+		if s.path != path {
+			return errors.New("путь к vault изменился")
+		}
+		header, err := core.ReadVaultHeader(s.path)
+		if err != nil {
+			return err
+		}
+		if header.Provider == core.ProviderPassphrase && passphrase == "" {
+			return errors.New("введите пароль vault")
+		}
+		vault, err := core.OpenVault(s.path, header.Provider, core.ProviderOptions{
+			Passphrase:    passphrase,
+			PassphraseSet: passphrase != "",
+		})
+		if err != nil {
+			return err
+		}
+		s.vault = vault
+		return nil
 	})
-	if err != nil {
-		return status, err
-	}
-	s.vault = vault
-	return s.statusLocked(), nil
+	return s.Status(), err
 }
 
 func (s *Service) Lock() Status {
@@ -229,6 +265,64 @@ func (s *Service) requireVault() (*core.Vault, error) {
 		return nil, errors.New("vault заблокирован")
 	}
 	return s.vault, nil
+}
+
+// Reload re-reads the vault from disk using the cached key. It takes a shared
+// file lock so it cannot observe a writer's intermediate state.
+func (s *Service) Reload() (Status, error) {
+	s.mu.Lock()
+	path := s.path
+	pathErr := s.pathErr
+	s.mu.Unlock()
+	if pathErr != nil {
+		return s.Status(), pathErr
+	}
+	err := core.WithVaultLock(path, false, func() error {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		vault, err := s.requireVault()
+		if err != nil {
+			return err
+		}
+		if vault.Path != path {
+			return errors.New("путь к vault изменился")
+		}
+		return core.Reload(vault)
+	})
+	return s.Status(), err
+}
+
+// withReloadedVault takes the vault file lock before s.mu, reloads the current
+// on-disk state and runs fn while both are held. The lock is always acquired
+// before s.mu so waiting for another process can never deadlock a caller that
+// holds the mutex. Mutations must use exclusive=true.
+func (s *Service) withReloadedVault(exclusive bool, fn func(*core.Vault) error) error {
+	s.mu.Lock()
+	path := s.path
+	pathErr := s.pathErr
+	locked := s.vault == nil || s.vault.Payload == nil
+	s.mu.Unlock()
+	if pathErr != nil {
+		return pathErr
+	}
+	if locked {
+		return errors.New("vault заблокирован")
+	}
+	return core.WithVaultLock(path, exclusive, func() error {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		vault, err := s.requireVault()
+		if err != nil {
+			return err
+		}
+		if vault.Path != path {
+			return errors.New("путь к vault изменился")
+		}
+		if err := core.Reload(vault); err != nil {
+			return err
+		}
+		return fn(vault)
+	})
 }
 
 func accountView(info core.AccountInfo) AccountView {
@@ -286,93 +380,87 @@ func (s *Service) GetAccount(name string) (AccountView, error) {
 }
 
 func (s *Service) SaveAccount(input AccountInput) (AccountView, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	vault, err := s.requireVault()
-	if err != nil {
-		return AccountView{}, err
-	}
-	name := strings.TrimSpace(input.Name)
-	if err := core.ValidateAccountName(name); err != nil {
-		return AccountView{}, err
-	}
-	description := input.Description
+	var view AccountView
+	err := s.withReloadedVault(true, func(vault *core.Vault) error {
+		name := strings.TrimSpace(input.Name)
+		if err := core.ValidateAccountName(name); err != nil {
+			return err
+		}
+		description := input.Description
 
-	oldName := strings.TrimSpace(input.OriginalName)
-	if oldName == "" {
-		if input.NewSecret == "" {
-			return AccountView{}, errors.New("секрет не может быть пустым")
-		}
-		if _, err := vault.Payload.Add(name, input.NewSecret, &description, false); err != nil {
-			return AccountView{}, err
-		}
-		if input.Favorite {
-			if err := vault.Payload.SetFavorite(name, true); err != nil {
-				return AccountView{}, err
+		oldName := strings.TrimSpace(input.OriginalName)
+		if oldName == "" {
+			if input.NewSecret == "" {
+				return errors.New("секрет не может быть пустым")
+			}
+			if _, err := vault.Payload.Add(name, input.NewSecret, &description, false); err != nil {
+				return err
+			}
+			if input.Favorite {
+				if err := vault.Payload.SetFavorite(name, true); err != nil {
+					return err
+				}
+			}
+		} else {
+			if _, ok := vault.Payload.Get(oldName); !ok {
+				return fmt.Errorf("аккаунт %q не найден", oldName)
+			}
+			var secret *string
+			if input.NewSecret != "" {
+				normalized, err := core.NormalizeAndValidateSecret(input.NewSecret)
+				if err != nil {
+					return fmt.Errorf("некорректный секрет: %w", err)
+				}
+				secret = &normalized
+			}
+			if oldName != name {
+				if err := vault.Payload.Rename(oldName, name); err != nil {
+					return err
+				}
+			}
+			if err := vault.Payload.Update(name, secret, &description); err != nil {
+				return err
+			}
+			if err := vault.Payload.SetFavorite(name, input.Favorite); err != nil {
+				return err
 			}
 		}
-	} else {
-		if _, ok := vault.Payload.Get(oldName); !ok {
-			return AccountView{}, fmt.Errorf("аккаунт %q не найден", oldName)
+		if err := vault.Save(); err != nil {
+			return err
 		}
-		var secret *string
-		if input.NewSecret != "" {
-			normalized, err := core.NormalizeAndValidateSecret(input.NewSecret)
-			if err != nil {
-				return AccountView{}, fmt.Errorf("некорректный секрет: %w", err)
-			}
-			secret = &normalized
+		account, ok := vault.Payload.Get(name)
+		if !ok {
+			return fmt.Errorf("аккаунт %q не найден после сохранения", name)
 		}
-		if oldName != name {
-			if err := vault.Payload.Rename(oldName, name); err != nil {
-				return AccountView{}, err
-			}
-		}
-		if err := vault.Payload.Update(name, secret, &description); err != nil {
-			return AccountView{}, err
-		}
-		if err := vault.Payload.SetFavorite(name, input.Favorite); err != nil {
-			return AccountView{}, err
-		}
-	}
-	if err := vault.Save(); err != nil {
-		return AccountView{}, err
-	}
-	account, ok := vault.Payload.Get(name)
-	if !ok {
-		return AccountView{}, fmt.Errorf("аккаунт %q не найден после сохранения", name)
-	}
-	return accountView(core.AccountInfo{Name: name, Account: account}), nil
+		view = accountView(core.AccountInfo{Name: name, Account: account})
+		return nil
+	})
+	return view, err
 }
 
 func (s *Service) DeleteAccount(name string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	vault, err := s.requireVault()
-	if err != nil {
-		return err
-	}
-	if err := vault.Payload.Remove(name); err != nil {
-		return err
-	}
-	return vault.Save()
+	return s.withReloadedVault(true, func(vault *core.Vault) error {
+		if err := vault.Payload.Remove(name); err != nil {
+			return err
+		}
+		return vault.Save()
+	})
 }
 
 func (s *Service) SetFavorite(name string, favorite bool) (AccountView, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	vault, err := s.requireVault()
-	if err != nil {
-		return AccountView{}, err
-	}
-	if err := vault.Payload.SetFavorite(name, favorite); err != nil {
-		return AccountView{}, err
-	}
-	if err := vault.Save(); err != nil {
-		return AccountView{}, err
-	}
-	account, _ := vault.Payload.Get(name)
-	return accountView(core.AccountInfo{Name: name, Account: account}), nil
+	var view AccountView
+	err := s.withReloadedVault(true, func(vault *core.Vault) error {
+		if err := vault.Payload.SetFavorite(name, favorite); err != nil {
+			return err
+		}
+		if err := vault.Save(); err != nil {
+			return err
+		}
+		account, _ := vault.Payload.Get(name)
+		view = accountView(core.AccountInfo{Name: name, Account: account})
+		return nil
+	})
+	return view, err
 }
 
 func (s *Service) CopyCode(name string) (CopyResult, error) {
@@ -399,42 +487,31 @@ func (s *Service) CopyCode(name string) (CopyResult, error) {
 }
 
 func (s *Service) Rekey(target, passphrase string) (Status, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	status := s.statusLocked()
-	vault, err := s.requireVault()
-	if err != nil {
-		return status, err
-	}
-	if target == "" {
-		return status, errors.New("не указан целевой провайдер")
-	}
-	if target == core.ProviderPlaintext {
-		return status, errors.New("режим plaintext не поддерживается в GUI")
-	}
-	if target == core.ProviderKeyring && !core.KeyringAvailable() {
-		return status, errors.New("keyring недоступен")
-	}
-	if target == core.ProviderPassphrase && passphrase == "" {
-		return status, errors.New("пароль не может быть пустым")
-	}
-	if err := core.RekeyVault(vault, target, core.ProviderOptions{
-		Passphrase:    passphrase,
-		PassphraseSet: passphrase != "",
-	}); err != nil {
-		return status, err
-	}
-	return s.statusLocked(), nil
+	err := s.withReloadedVault(true, func(vault *core.Vault) error {
+		if target == "" {
+			return errors.New("не указан целевой провайдер")
+		}
+		if target == core.ProviderPlaintext {
+			return errors.New("режим plaintext не поддерживается в GUI")
+		}
+		if target == core.ProviderKeyring && !core.KeyringAvailable() {
+			return errors.New("keyring недоступен")
+		}
+		if target == core.ProviderPassphrase && passphrase == "" {
+			return errors.New("пароль не может быть пустым")
+		}
+		return core.RekeyVault(vault, target, core.ProviderOptions{
+			Passphrase:    passphrase,
+			PassphraseSet: passphrase != "",
+		})
+	})
+	return s.Status(), err
 }
 
 func (s *Service) Export(path, passphrase string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	vault, err := s.requireVault()
-	if err != nil {
-		return err
-	}
-	return core.WriteExport(path, vault.Payload, passphrase)
+	return s.withReloadedVault(false, func(vault *core.Vault) error {
+		return core.WriteExport(path, vault.Payload, passphrase)
+	})
 }
 
 func (s *Service) PreviewImport(path, passphrase string) (ImportPreview, error) {
@@ -461,22 +538,17 @@ func (s *Service) PreviewImport(path, passphrase string) (ImportPreview, error) 
 }
 
 func (s *Service) Import(path, passphrase string, overwrite bool) (core.ImportStats, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	vault, err := s.requireVault()
-	if err != nil {
-		return core.ImportStats{}, err
-	}
-	payload, err := core.ReadExport(path, passphrase)
-	if err != nil {
-		return core.ImportStats{}, err
-	}
-	stats, err := vault.Payload.Import(payload, overwrite)
-	if err != nil {
-		return stats, err
-	}
-	if err := vault.Save(); err != nil {
-		return stats, err
-	}
-	return stats, nil
+	var stats core.ImportStats
+	err := s.withReloadedVault(true, func(vault *core.Vault) error {
+		payload, err := core.ReadExport(path, passphrase)
+		if err != nil {
+			return err
+		}
+		stats, err = vault.Payload.Import(payload, overwrite)
+		if err != nil {
+			return err
+		}
+		return vault.Save()
+	})
+	return stats, err
 }

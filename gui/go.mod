@@ -3,6 +3,7 @@ module github.com/mvkvl/2fa/gui
 go 1.26.0
 
 require (
+	github.com/fsnotify/fsnotify v1.9.0
 	github.com/mvkvl/2fa v0.0.0
 	github.com/wailsapp/wails/v3 v3.1.0
 )

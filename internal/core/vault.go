@@ -250,6 +250,36 @@ func (v *Vault) Save() error {
 	return writeVaultFile(v.Path, v.Header)
 }
 
+// Reload re-reads the vault file and replaces Header and Payload using the key
+// cached in v. It refuses to load a different vault identity or encryption
+// scheme, which indicates an external rekey and requires unlocking again.
+func Reload(v *Vault) error {
+	if v == nil {
+		return errors.New("vault не открыт")
+	}
+	headerPtr, err := ReadVaultHeader(v.Path)
+	if err != nil {
+		return err
+	}
+	header := *headerPtr
+	if header.VaultID != v.Header.VaultID {
+		return errors.New("vault был пересоздан: изменился VaultID; требуется повторная разблокировка")
+	}
+	if header.Provider != v.Header.Provider {
+		return fmt.Errorf("провайдер vault изменился с %q на %q; требуется повторная разблокировка", v.Header.Provider, header.Provider)
+	}
+	if header.Cipher != v.Header.Cipher {
+		return fmt.Errorf("шифр vault изменился с %q на %q; требуется повторная разблокировка", v.Header.Cipher, header.Cipher)
+	}
+	payload, err := decryptPayload(&header, v.key)
+	if err != nil {
+		return err
+	}
+	v.Header = header
+	v.Payload = payload
+	return nil
+}
+
 func ReadVaultHeader(path string) (*VaultHeader, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {

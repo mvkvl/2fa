@@ -81,6 +81,7 @@ func main() {
 			},
 		},
 		OnShutdown: func() {
+			selectedWindow.stopVaultWatcher()
 			svc.Lock()
 		},
 		ErrorHandler: func(err error) {
@@ -118,6 +119,7 @@ func main() {
 	})
 
 	selectedWindow.setupTray()
+	selectedWindow.startVaultWatcher()
 	if showWindow {
 		selectedWindow.showWindow()
 	}
