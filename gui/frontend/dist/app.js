@@ -1,4 +1,4 @@
-import { api, Events } from "./bindings.js?v=5";
+import { api, Events } from "./bindings.js?v=6";
 
 const $ = (id) => document.getElementById(id);
 const NS = "http://www.w3.org/2000/svg";
