@@ -44,9 +44,24 @@ function setScreen(name) {
   }
 }
 
+function toastHost() {
+  const dialogs = document.querySelectorAll("dialog[open]");
+  const dialog = dialogs.length ? dialogs[dialogs.length - 1] : null;
+  const card = dialog ? dialog.querySelector(".modal-card") : null;
+  return card || document.body;
+}
+
 function showToast(message, kind = "ok") {
   const toast = $("toast");
   if (!toast) return;
+  const host = toastHost();
+  if (toast.parentElement !== host) {
+    if (host === document.body) {
+      document.body.appendChild(toast);
+    } else {
+      host.insertBefore(toast, host.firstChild);
+    }
+  }
   clearTimeout(state.toastTimer);
   toast.textContent = message;
   toast.className = `toast show ${kind}`;
@@ -762,6 +777,13 @@ function wireEvents() {
   document.querySelectorAll("dialog").forEach((dialog) => {
     dialog.addEventListener("click", (event) => {
       if (event.target === dialog) closeDialog(dialog);
+    });
+    dialog.addEventListener("close", () => {
+      const toast = $("toast");
+      if (!toast || !dialog.contains(toast)) return;
+      document.body.appendChild(toast);
+      toast.className = "toast";
+      clearTimeout(state.toastTimer);
     });
   });
 

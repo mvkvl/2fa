@@ -1206,6 +1206,25 @@ dialog.modal::backdrop {
   border-color: rgba(var(--danger-rgb), .4);
 }
 
+/* Inside a modal the toast becomes a banner at the top of the card: the
+   dialog lives in the top layer, so a fixed body toast would be dimmed by
+   the backdrop. */
+.modal-card > .toast {
+  position: static;
+  display: none;
+  max-width: none;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  opacity: 1;
+  transform: none;
+  transition: none;
+}
+
+.modal-card > .toast.show {
+  display: block;
+}
+
 @media (max-width: 640px) {
   .screen.centered {
     padding: 20px 14px;
