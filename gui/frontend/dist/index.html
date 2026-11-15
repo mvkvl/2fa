@@ -3,9 +3,22 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="color-scheme" content="dark">
+<meta name="color-scheme" content="dark light">
 <title>2fa</title>
-<link rel="stylesheet" href="styles.css?v=6">
+<script>
+  (function () {
+    const themes = ["system", "dark", "light", "midnight", "ocean", "sand"];
+    let preference = "system";
+    try {
+      const saved = localStorage.getItem("2fa.theme");
+      if (themes.includes(saved)) preference = saved;
+    } catch {}
+    document.documentElement.dataset.themePreference = preference;
+    const systemLight = window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches;
+    document.documentElement.dataset.theme = preference === "system" ? (systemLight ? "light" : "dark") : preference;
+  })();
+</script>
+<link rel="stylesheet" href="styles.css?v=7">
 </head>
 <body>
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
@@ -150,6 +163,19 @@
       <span>Версия</span><span id="settingsVersion"></span>
     </div>
     <hr>
+    <h3>Оформление</h3>
+    <label>Тема
+      <select id="themeSelect">
+        <option value="system">Как в системе</option>
+        <option value="dark">Тёмная</option>
+        <option value="light">Светлая</option>
+        <option value="midnight">Полночь</option>
+        <option value="ocean">Океан</option>
+        <option value="sand">Песочная</option>
+      </select>
+    </label>
+    <p class="hint">«Как в системе» переключается между светлой и тёмной темой вместе с оформлением ОС.</p>
+    <hr>
     <h3>Сменить способ хранения ключа</h3>
     <div class="row">
       <select id="rekeyTarget">
@@ -235,6 +261,6 @@
     }, 8000);
   })();
 </script>
-<script type="module" src="app.js?v=6"></script>
+<script type="module" src="app.js?v=7"></script>
 </body>
 </html>

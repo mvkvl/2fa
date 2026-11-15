@@ -1,7 +1,10 @@
-import { api, Events } from "./bindings.js?v=6";
+import { api, Events } from "./bindings.js?v=7";
 
 const $ = (id) => document.getElementById(id);
 const NS = "http://www.w3.org/2000/svg";
+const THEME_KEY = "2fa.theme";
+const THEMES = new Set(["system", "dark", "light", "midnight", "ocean", "sand"]);
+const systemTheme = window.matchMedia ? window.matchMedia("(prefers-color-scheme: light)") : null;
 
 const state = {
   status: null,
@@ -45,6 +48,43 @@ function errorText(err) {
   if (!err) return "Неизвестная ошибка";
   if (typeof err === "string") return err;
   return err.message || String(err);
+}
+
+function normalizeTheme(value) {
+  return THEMES.has(value) ? value : "system";
+}
+
+function resolveTheme(preference) {
+  if (preference === "system") {
+    return systemTheme?.matches ? "light" : "dark";
+  }
+  return preference;
+}
+
+function applyTheme(preference, persist = true) {
+  const next = normalizeTheme(preference);
+  document.documentElement.dataset.themePreference = next;
+  document.documentElement.dataset.theme = resolveTheme(next);
+  if (persist) {
+    try {
+      localStorage.setItem(THEME_KEY, next);
+    } catch {
+      // Theme persistence is optional.
+    }
+  }
+  const select = $("themeSelect");
+  if (select) select.value = next;
+}
+
+function syncSystemTheme() {
+  if (document.documentElement.dataset.themePreference === "system") {
+    applyTheme("system", false);
+  }
+}
+
+if (systemTheme) {
+  if (systemTheme.addEventListener) systemTheme.addEventListener("change", syncSystemTheme);
+  else if (systemTheme.addListener) systemTheme.addListener(syncSystemTheme);
 }
 
 async function closeWindow() {
@@ -436,6 +476,7 @@ function openSettings() {
   $("settingsPath").textContent = status.path || "";
   $("settingsProvider").textContent = status.provider || "—";
   $("settingsVersion").textContent = $("versionInfo")?.textContent || "версия dev";
+  $("themeSelect").value = document.documentElement.dataset.themePreference || "system";
   const target = $("rekeyTarget");
   const keyringOption = [...target.options].find((option) => option.value === "keyring");
   if (keyringOption) keyringOption.disabled = !status.keyringAvailable;
@@ -624,6 +665,7 @@ function wireEvents() {
   $("lockBtn")?.addEventListener("click", lockVault);
   $("settingsBtn")?.addEventListener("click", openSettings);
   $("settingsCloseBtn")?.addEventListener("click", () => closeDialog($("settingsDialog")));
+  $("themeSelect")?.addEventListener("change", (event) => applyTheme(event.target.value));
   $("addBtn")?.addEventListener("click", () => openAccountDialog());
   $("emptyAddBtn")?.addEventListener("click", () => openAccountDialog());
   $("accountForm")?.addEventListener("submit", saveAccount);
@@ -661,6 +703,7 @@ function wireEvents() {
 
 async function init() {
   window.__2faBooted = true;
+  applyTheme(document.documentElement.dataset.themePreference || "system", false);
   buildRing();
   setInterval(updateRing, 250);
   wireEvents();
