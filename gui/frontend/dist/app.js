@@ -1,9 +1,20 @@
-import { api, Events } from "./bindings.js?v=7";
+import { api, Events } from "./bindings.js?v=8";
 
 const $ = (id) => document.getElementById(id);
 const NS = "http://www.w3.org/2000/svg";
 const THEME_KEY = "2fa.theme";
-const THEMES = new Set(["system", "dark", "light", "midnight", "ocean", "sand"]);
+const THEME_MODE_KEY = "2fa.theme-mode";
+const THEMES = new Set(["mint", "midnight", "ocean", "sand"]);
+const THEME_MODES = new Set(["auto", "light", "dark"]);
+const THEME_MODE_ORDER = ["auto", "light", "dark"];
+const LEGACY_THEMES = {
+  system: ["mint", "auto"],
+  dark: ["mint", "dark"],
+  light: ["mint", "light"],
+  midnight: ["midnight", "dark"],
+  ocean: ["ocean", "dark"],
+  sand: ["sand", "light"],
+};
 const systemTheme = window.matchMedia ? window.matchMedia("(prefers-color-scheme: light)") : null;
 
 const state = {
@@ -51,35 +62,100 @@ function errorText(err) {
 }
 
 function normalizeTheme(value) {
-  return THEMES.has(value) ? value : "system";
+  return THEMES.has(value) ? value : "mint";
 }
 
-function resolveTheme(preference) {
-  if (preference === "system") {
+function normalizeThemeMode(value) {
+  return THEME_MODES.has(value) ? value : "auto";
+}
+
+function resolveThemeMode(mode) {
+  if (mode === "auto") {
     return systemTheme?.matches ? "light" : "dark";
   }
-  return preference;
+  return mode;
 }
 
-function applyTheme(preference, persist = true) {
-  const next = normalizeTheme(preference);
-  document.documentElement.dataset.themePreference = next;
-  document.documentElement.dataset.theme = resolveTheme(next);
+function themeModeLabel(mode) {
+  if (mode === "light") return "светлая";
+  if (mode === "dark") return "тёмная";
+  return "как в системе";
+}
+
+function updateThemeModeControl(mode) {
+  const button = $("themeModeBtn");
+  if (button) {
+    button.dataset.themeMode = mode;
+    button.title = `Режим: ${themeModeLabel(mode)}`;
+    button.setAttribute("aria-label", `Режим темы: ${themeModeLabel(mode)}`);
+  }
+  const hint = $("themeModeHint");
+  if (hint) hint.textContent = `Режим: ${themeModeLabel(mode)}. Нажмите на кнопку, чтобы переключить.`;
+}
+
+function loadThemeSettings() {
+  let theme = "mint";
+  let mode = "auto";
+  let stored = true;
+  let migrated = false;
+  try {
+    const savedTheme = localStorage.getItem(THEME_KEY);
+    const savedMode = localStorage.getItem(THEME_MODE_KEY);
+    if (THEMES.has(savedTheme)) {
+      theme = savedTheme;
+    } else if (LEGACY_THEMES[savedTheme]) {
+      theme = LEGACY_THEMES[savedTheme][0];
+      mode = LEGACY_THEMES[savedTheme][1];
+      migrated = true;
+    } else {
+      stored = false;
+    }
+    if (THEME_MODES.has(savedMode)) mode = savedMode;
+    else stored = false;
+  } catch {
+    stored = false;
+  }
+  return { theme, mode, stored: stored && !migrated };
+}
+
+function applyTheme(theme, mode, persist = true) {
+  const root = document.documentElement;
+  const nextTheme = normalizeTheme(theme);
+  const nextMode = normalizeThemeMode(mode);
+  root.dataset.theme = nextTheme;
+  root.dataset.themeMode = nextMode;
+  root.dataset.mode = resolveThemeMode(nextMode);
   if (persist) {
     try {
-      localStorage.setItem(THEME_KEY, next);
+      localStorage.setItem(THEME_KEY, nextTheme);
+      localStorage.setItem(THEME_MODE_KEY, nextMode);
     } catch {
       // Theme persistence is optional.
     }
   }
   const select = $("themeSelect");
-  if (select) select.value = next;
+  if (select) select.value = nextTheme;
+  updateThemeModeControl(nextMode);
+}
+
+function currentTheme() {
+  return normalizeTheme(document.documentElement.dataset.theme);
+}
+
+function currentThemeMode() {
+  return normalizeThemeMode(document.documentElement.dataset.themeMode);
 }
 
 function syncSystemTheme() {
-  if (document.documentElement.dataset.themePreference === "system") {
-    applyTheme("system", false);
+  if (currentThemeMode() === "auto") {
+    document.documentElement.dataset.mode = resolveThemeMode("auto");
   }
+}
+
+function cycleThemeMode() {
+  const index = THEME_MODE_ORDER.indexOf(currentThemeMode());
+  const next = THEME_MODE_ORDER[(index + 1) % THEME_MODE_ORDER.length];
+  applyTheme(currentTheme(), next);
 }
 
 if (systemTheme) {
@@ -476,7 +552,8 @@ function openSettings() {
   $("settingsPath").textContent = status.path || "";
   $("settingsProvider").textContent = status.provider || "—";
   $("settingsVersion").textContent = $("versionInfo")?.textContent || "версия dev";
-  $("themeSelect").value = document.documentElement.dataset.themePreference || "system";
+  $("themeSelect").value = currentTheme();
+  updateThemeModeControl(currentThemeMode());
   const target = $("rekeyTarget");
   const keyringOption = [...target.options].find((option) => option.value === "keyring");
   if (keyringOption) keyringOption.disabled = !status.keyringAvailable;
@@ -665,7 +742,8 @@ function wireEvents() {
   $("lockBtn")?.addEventListener("click", lockVault);
   $("settingsBtn")?.addEventListener("click", openSettings);
   $("settingsCloseBtn")?.addEventListener("click", () => closeDialog($("settingsDialog")));
-  $("themeSelect")?.addEventListener("change", (event) => applyTheme(event.target.value));
+  $("themeSelect")?.addEventListener("change", (event) => applyTheme(event.target.value, currentThemeMode()));
+  $("themeModeBtn")?.addEventListener("click", cycleThemeMode);
   $("addBtn")?.addEventListener("click", () => openAccountDialog());
   $("emptyAddBtn")?.addEventListener("click", () => openAccountDialog());
   $("accountForm")?.addEventListener("submit", saveAccount);
@@ -703,7 +781,8 @@ function wireEvents() {
 
 async function init() {
   window.__2faBooted = true;
-  applyTheme(document.documentElement.dataset.themePreference || "system", false);
+  const themeSettings = loadThemeSettings();
+  applyTheme(themeSettings.theme, themeSettings.mode, !themeSettings.stored);
   buildRing();
   setInterval(updateRing, 250);
   wireEvents();

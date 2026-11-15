@@ -43,7 +43,7 @@
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
-:root[data-theme="light"] {
+:root[data-theme="mint"][data-mode="light"] {
   color-scheme: light;
   --bg: #eef3f6;
   --bg-soft: #e4ebf0;
@@ -52,13 +52,13 @@
   --line: #d2dde5;
   --text: #16232d;
   --muted: #617585;
-  --mint: #0f9f78;
-  --mint-dim: #0b7f60;
+  --mint: #0b7a5d;
+  --mint-dim: #096b51;
   --amber: #b87912;
   --danger: #c74444;
   --shadow: 0 24px 80px rgba(28, 47, 61, .18);
   --fab-shadow: 0 14px 34px rgba(28, 47, 61, .18);
-  --mint-rgb: 15, 159, 120;
+  --mint-rgb: 11, 122, 93;
   --primary-rgb: 25, 185, 139;
   --amber-rgb: 184, 121, 18;
   --danger-rgb: 199, 68, 68;
@@ -68,10 +68,10 @@
   --input-focus-bg: #ffffff;
   --hover-border: #b9c8d3;
   --hover-bg: #e8eef3;
-  --primary-a: #19b98b;
-  --primary-b: #0d8f6c;
-  --primary-hover-a: #22c99a;
-  --primary-hover-b: #109f78;
+  --primary-a: #0b7a5d;
+  --primary-b: #08624a;
+  --primary-hover-a: #0d8263;
+  --primary-hover-b: #0a7155;
   --on-primary: #f4fffb;
   --danger-text: #a52f2f;
   --welcome-a: rgba(255, 255, 255, .98);
@@ -85,7 +85,7 @@
   --keyhole: #eef3f6;
 }
 
-:root[data-theme="midnight"] {
+:root[data-theme="midnight"][data-mode="dark"] {
   color-scheme: dark;
   --bg: #090811;
   --bg-soft: #100d1c;
@@ -127,7 +127,7 @@
   --keyhole: #090811;
 }
 
-:root[data-theme="ocean"] {
+:root[data-theme="ocean"][data-mode="dark"] {
   color-scheme: dark;
   --bg: #06131b;
   --bg-soft: #0a1a24;
@@ -169,7 +169,7 @@
   --keyhole: #06131b;
 }
 
-:root[data-theme="sand"] {
+:root[data-theme="sand"][data-mode="light"] {
   color-scheme: light;
   --bg: #f4eee4;
   --bg-soft: #ece2d4;
@@ -178,13 +178,13 @@
   --line: #d9cbb8;
   --text: #2b241c;
   --muted: #7a6a58;
-  --mint: #0f8f6f;
-  --mint-dim: #0b735a;
+  --mint: #0c735a;
+  --mint-dim: #0a6650;
   --amber: #b8741a;
   --danger: #c24545;
   --shadow: 0 24px 80px rgba(74, 54, 33, .18);
   --fab-shadow: 0 14px 34px rgba(74, 54, 33, .18);
-  --mint-rgb: 15, 143, 111;
+  --mint-rgb: 12, 115, 90;
   --primary-rgb: 53, 185, 141;
   --amber-rgb: 184, 116, 26;
   --danger-rgb: 194, 69, 69;
@@ -194,10 +194,10 @@
   --input-focus-bg: #fffdf8;
   --hover-border: #c3b19b;
   --hover-bg: #efe4d4;
-  --primary-a: #35b98d;
-  --primary-b: #1f9e78;
-  --primary-hover-a: #43c99b;
-  --primary-hover-b: #28ae86;
+  --primary-a: #127a5c;
+  --primary-b: #0e6449;
+  --primary-hover-a: #147f61;
+  --primary-hover-b: #117356;
   --on-primary: #f4fffb;
   --danger-text: #a52f2f;
   --welcome-a: rgba(255, 252, 247, .98);
@@ -209,6 +209,132 @@
   --toast-bg: #fffaf2;
   --backdrop: rgba(40, 28, 16, .4);
   --keyhole: #f4eee4;
+}
+
+:root[data-theme="midnight"][data-mode="light"] {
+  color-scheme: light;
+  --bg: #f2effc;
+  --bg-soft: #eae5f8;
+  --panel: #ffffff;
+  --panel-2: #f6f3fd;
+  --line: #d8d1ee;
+  --text: #221a3a;
+  --muted: #6d6488;
+  --mint: #6f4fd8;
+  --mint-dim: #5a3cc0;
+  --amber: #a9741a;
+  --danger: #c04545;
+  --shadow: 0 24px 80px rgba(60, 45, 110, .16);
+  --fab-shadow: 0 14px 34px rgba(60, 45, 110, .16);
+  --mint-rgb: 111, 79, 216;
+  --primary-rgb: 124, 96, 226;
+  --amber-rgb: 169, 116, 26;
+  --danger-rgb: 192, 69, 69;
+  --glow-a: rgba(124, 96, 226, .14);
+  --glow-b: rgba(90, 120, 200, .10);
+  --placeholder: #918aa8;
+  --input-focus-bg: #ffffff;
+  --hover-border: #c4bcdf;
+  --hover-bg: #eee9fa;
+  --primary-a: #6b4ddc;
+  --primary-b: #5539b8;
+  --primary-hover-a: #7053e2;
+  --primary-hover-b: #6344cc;
+  --on-primary: #f7f4ff;
+  --danger-text: #a52f2f;
+  --welcome-a: rgba(255, 255, 255, .98);
+  --welcome-b: rgba(246, 242, 253, .99);
+  --account-bg: rgba(255, 255, 255, .78);
+  --account-hover-border: #c4bcdf;
+  --account-hover-bg: rgba(255, 255, 255, .98);
+  --status: #7d7596;
+  --toast-bg: #ffffff;
+  --backdrop: rgba(30, 20, 55, .35);
+  --keyhole: #f2effc;
+}
+
+:root[data-theme="ocean"][data-mode="light"] {
+  color-scheme: light;
+  --bg: #e9f5f8;
+  --bg-soft: #dff0f4;
+  --panel: #ffffff;
+  --panel-2: #f1fafc;
+  --line: #c9e0e6;
+  --text: #0e2a33;
+  --muted: #547785;
+  --mint: #06727c;
+  --mint-dim: #05666f;
+  --amber: #a97a12;
+  --danger: #c14545;
+  --shadow: 0 24px 80px rgba(20, 70, 85, .16);
+  --fab-shadow: 0 14px 34px rgba(20, 70, 85, .16);
+  --mint-rgb: 6, 114, 124;
+  --primary-rgb: 14, 164, 176;
+  --amber-rgb: 169, 122, 18;
+  --danger-rgb: 193, 69, 69;
+  --glow-a: rgba(14, 164, 176, .13);
+  --glow-b: rgba(60, 140, 190, .10);
+  --placeholder: #7d9aa6;
+  --input-focus-bg: #ffffff;
+  --hover-border: #b2d2da;
+  --hover-bg: #e6f4f8;
+  --primary-a: #0b7f8a;
+  --primary-b: #06616a;
+  --primary-hover-a: #0c7580;
+  --primary-hover-b: #08747e;
+  --on-primary: #f2feff;
+  --danger-text: #a52f2f;
+  --welcome-a: rgba(255, 255, 255, .98);
+  --welcome-b: rgba(241, 250, 252, .99);
+  --account-bg: rgba(255, 255, 255, .78);
+  --account-hover-border: #b2d2da;
+  --account-hover-bg: rgba(255, 255, 255, .98);
+  --status: #6d8d99;
+  --toast-bg: #ffffff;
+  --backdrop: rgba(5, 35, 45, .35);
+  --keyhole: #e9f5f8;
+}
+
+:root[data-theme="sand"][data-mode="dark"] {
+  color-scheme: dark;
+  --bg: #191410;
+  --bg-soft: #211a14;
+  --panel: #292017;
+  --panel-2: #1d1611;
+  --line: #3d2f22;
+  --text: #f4e9d9;
+  --muted: #b5a28c;
+  --mint: #e3b878;
+  --mint-dim: #c99b5a;
+  --amber: #f0c07a;
+  --danger: #ff8a8a;
+  --shadow: 0 24px 80px rgba(0, 0, 0, .55);
+  --fab-shadow: 0 14px 34px rgba(0, 0, 0, .55);
+  --mint-rgb: 227, 184, 120;
+  --primary-rgb: 224, 185, 120;
+  --amber-rgb: 240, 192, 122;
+  --danger-rgb: 255, 138, 138;
+  --glow-a: rgba(196, 140, 70, .20);
+  --glow-b: rgba(120, 100, 70, .12);
+  --placeholder: #8a7862;
+  --input-focus-bg: #1c1510;
+  --hover-border: #4d3c2b;
+  --hover-bg: #2e2419;
+  --primary-a: #e8c184;
+  --primary-b: #c99b5a;
+  --primary-hover-a: #f2cf95;
+  --primary-hover-b: #d8ab69;
+  --on-primary: #2b1c0c;
+  --danger-text: #ffb2b2;
+  --welcome-a: rgba(37, 29, 21, .96);
+  --welcome-b: rgba(23, 18, 13, .98);
+  --account-bg: rgba(41, 32, 23, .82);
+  --account-hover-border: #4d3c2b;
+  --account-hover-bg: rgba(48, 37, 27, .95);
+  --status: #8d7a63;
+  --toast-bg: #2a2118;
+  --backdrop: rgba(10, 7, 4, .72);
+  --keyhole: #191410;
 }
 
 * {
@@ -979,6 +1105,52 @@ dialog.modal::backdrop {
 
 .row > button {
   flex: 0 0 auto;
+}
+
+/* Theme picker: palette select and mode toggle share one row. */
+.theme-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.theme-row > label {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.theme-mode-btn {
+  width: 46px;
+  height: 46px;
+  flex: 0 0 auto;
+  padding: 0;
+  color: var(--muted);
+}
+
+.theme-mode-btn:hover,
+.theme-mode-btn:focus-visible {
+  color: var(--text);
+}
+
+.theme-mode-btn svg {
+  display: none;
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.theme-mode-btn [data-mode-icon="auto"] path {
+  fill: currentColor;
+}
+
+.theme-mode-btn[data-theme-mode="auto"] [data-mode-icon="auto"],
+.theme-mode-btn[data-theme-mode="light"] [data-mode-icon="light"],
+.theme-mode-btn[data-theme-mode="dark"] [data-mode-icon="dark"] {
+  display: block;
 }
 
 .import-list {

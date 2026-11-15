@@ -7,18 +7,33 @@
 <title>2fa</title>
 <script>
   (function () {
-    const themes = ["system", "dark", "light", "midnight", "ocean", "sand"];
-    let preference = "system";
+    const themes = ["mint", "midnight", "ocean", "sand"];
+    const modes = ["auto", "light", "dark"];
+    const legacy = {
+      system: ["mint", "auto"],
+      dark: ["mint", "dark"],
+      light: ["mint", "light"],
+      midnight: ["midnight", "dark"],
+      ocean: ["ocean", "dark"],
+      sand: ["sand", "light"],
+    };
+    let theme = "mint";
+    let mode = "auto";
     try {
-      const saved = localStorage.getItem("2fa.theme");
-      if (themes.includes(saved)) preference = saved;
+      const savedTheme = localStorage.getItem("2fa.theme");
+      const savedMode = localStorage.getItem("2fa.theme-mode");
+      if (themes.includes(savedTheme)) theme = savedTheme;
+      else if (legacy[savedTheme]) [theme, mode] = legacy[savedTheme];
+      if (modes.includes(savedMode)) mode = savedMode;
     } catch {}
-    document.documentElement.dataset.themePreference = preference;
     const systemLight = window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches;
-    document.documentElement.dataset.theme = preference === "system" ? (systemLight ? "light" : "dark") : preference;
+    const root = document.documentElement;
+    root.dataset.theme = theme;
+    root.dataset.themeMode = mode;
+    root.dataset.mode = mode === "auto" ? (systemLight ? "light" : "dark") : mode;
   })();
 </script>
-<link rel="stylesheet" href="styles.css?v=7">
+<link rel="stylesheet" href="styles.css?v=8">
 </head>
 <body>
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
@@ -164,17 +179,30 @@
     </div>
     <hr>
     <h3>Оформление</h3>
-    <label>Тема
-      <select id="themeSelect">
-        <option value="system">Как в системе</option>
-        <option value="dark">Тёмная</option>
-        <option value="light">Светлая</option>
-        <option value="midnight">Полночь</option>
-        <option value="ocean">Океан</option>
-        <option value="sand">Песочная</option>
-      </select>
-    </label>
-    <p class="hint">«Как в системе» переключается между светлой и тёмной темой вместе с оформлением ОС.</p>
+    <div class="theme-row">
+      <label>Тема
+        <select id="themeSelect">
+          <option value="mint">Мята</option>
+          <option value="midnight">Полночь</option>
+          <option value="ocean">Океан</option>
+          <option value="sand">Песочная</option>
+        </select>
+      </label>
+      <button id="themeModeBtn" class="theme-mode-btn" type="button" data-theme-mode="auto" title="Режим: как в системе" aria-label="Режим темы: как в системе">
+        <svg data-mode-icon="auto" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2"/>
+          <path d="M12 3.5a8.5 8.5 0 0 0 0 17Z" fill="currentColor"/>
+        </svg>
+        <svg data-mode-icon="light" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="4.2" fill="none" stroke="currentColor" stroke-width="2"/>
+          <path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.55 1.55M17.15 17.15l1.55 1.55M18.7 5.3l-1.55 1.55M6.85 17.15 5.3 18.7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <svg data-mode-icon="dark" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+        </svg>
+      </button>
+    </div>
+    <p id="themeModeHint" class="hint">Режим: как в системе. Нажмите на кнопку, чтобы переключить.</p>
     <hr>
     <h3>Сменить способ хранения ключа</h3>
     <div class="row">
@@ -261,6 +289,6 @@
     }, 8000);
   })();
 </script>
-<script type="module" src="app.js?v=7"></script>
+<script type="module" src="app.js?v=8"></script>
 </body>
 </html>
